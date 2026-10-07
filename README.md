@@ -94,7 +94,6 @@ used from a terminal menu (`console`) or from a page in your web browser (`web`)
 | installing the server and the helpers | [INSTALL.md](INSTALL.md) |
 | what each setting does | the configuration file itself (every option is explained in it) |
 | why things are done the way they are | [docs/DECISIONS.md](docs/DECISIONS.md) |
-| what was required of the design | [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md) |
 | how server and helpers talk | [docs/PROTOCOL.md](docs/PROTOCOL.md) |
 | attacks tried and their results | [docs/SECURITY_TESTS.md](docs/SECURITY_TESTS.md) |
 | Windows and macOS specifics | [docs/PORTING.md](docs/PORTING.md) |
