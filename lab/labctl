@@ -1,0 +1,651 @@
+#!/usr/bin/env bash
+# labctl - control script for the Matriline virtual test lab.
+#
+# Everything runs as the normal user: KVM through /dev/kvm, unprivileged QEMU
+# socket networking (-netdev dgram over 127.0.0.1) between every node and the
+# router VM, QEMU user-mode networking (slirp) only for the management NIC,
+# 9p/virtiofsd for host directory sharing. No bridges, no TAP, no sudo.
+#
+# Run "labctl help" for the command list. See lab/README.md for the topology.
+#
+# References (block level, adapted):
+#   - QEMU invocation / -netdev dgram|user / -virtfs:
+#     https://www.qemu.org/docs/master/system/invocation.html
+#   - virtiofs without root (memfd shared memory + vhost-user-fs-pci):
+#     https://virtio-fs.gitlab.io/howto-qemu.html and virtiofsd README
+#     (https://gitlab.com/virtio-fs/virtiofsd, "--sandbox namespace").
+#   - cloud-init NoCloud seed ISO (volume label "cidata"):
+#     https://cloudinit.readthedocs.io/en/latest/reference/datasources/nocloud.html
+#   - cloud-init network config v2 (match/set-name):
+#     https://cloudinit.readthedocs.io/en/latest/reference/network-config-format-v2.html
+set -euo pipefail
+
+LAB=$(cd "$(dirname "$(readlink -f "$0")")" && pwd)
+IMG=$LAB/images
+BASE=$IMG/base
+VMDIR=$IMG/vms
+SEED=$IMG/seed
+RUN=$LAB/run
+STATE=$LAB/state
+NETSTATE=$STATE/net
+KEYS=$LAB/keys
+KEY=$KEYS/lab_ed25519
+CAP=$LAB/captures
+SRCBIN=$(readlink -m "$LAB/../src/bin")
+VIRTIOFSD=${VIRTIOFSD:-/usr/lib/virtiofsd}
+
+# ---------------------------------------------------------------- inventory
+ALL_VMS=(router relay server artix) # void, devuan and ubuntu removed 2026-10-05 (disk space; user)
+NODES=(relay server artix)
+declare -A IDX=([router]=0 [relay]=1 [server]=2 [void]=3 [artix]=4 [devuan]=5 [ubuntu]=6)
+declare -A CPU=([router]=1 [relay]=1 [server]=2 [void]=2 [artix]=2 [devuan]=3 [ubuntu]=6)
+# guest CPU topology: void is ONE core with TWO hardware threads (pinned to the two threads
+# of one host core, tools/pin.sh), the lab's SMT test machine; the others get one core per
+# vCPU (QEMU default)
+declare -A SMP=([void]="sockets=1,cores=1,threads=2")
+declare -A RAM=([router]=512 [relay]=256 [server]=4096 [void]=2560 [artix]=3072 [devuan]=6656 [ubuntu]=8192)
+declare -A DISK=([router]=1G [relay]=1G [server]=8G [void]=6G [artix]=16G [devuan]=10G [ubuntu]=48G)
+declare -A ROLE=([router]=router [relay]=relay [server]=compute [void]=compute [artix]=compute [devuan]=compute [ubuntu]=compute)
+# Host directory sharing: 9p is built into QEMU and needs no helper process,
+# but the Debian "cloud" kernel is built without it (CONFIG_NET_9P is not set,
+# CONFIG_VIRTIO_FS=y in /boot/config-*-cloud-amd64), so server uses virtiofs through
+# an unprivileged virtiofsd. devuan also uses virtiofs (its kernel has both) so that
+# virtiofs is exercised on a non-systemd guest too.
+declare -A FS=([router]=9p [relay]=9p [server]=virtiofs [void]=9p [artix]=9p [devuan]=virtiofs [ubuntu]=9p)
+declare -A OSNAME=([router]=alpine [relay]=alpine [server]=debian [void]=void [artix]=artix [devuan]=devuan [ubuntu]=ubuntu)
+# Distros without an official cloud image: built in a throw-away builder VM (build_image),
+# no cloud-init inside.
+declare -A BUILT=([void]=1 [artix]=1 [devuan]=1)
+
+ALPINE_URL=https://dl-cdn.alpinelinux.org/alpine/v3.24/releases/cloud/alpine-3.24.2-x86_64-cloudinit-r0.qcow2
+DEBIAN_URL=https://cloud.debian.org/images/cloud/trixie/latest/debian-13-genericcloud-amd64.qcow2
+ARCH_URL=https://geo.mirror.pkgbuild.com/images/latest/Arch-Linux-x86_64-cloudimg.qcow2
+UBUNTU_URL=https://cloud-images.ubuntu.com/releases/resolute/release/ubuntu-26.04-server-cloudimg-amd64.img
+VOID_URL=https://repo-default.voidlinux.org/live/current/void-x86_64-ROOTFS-20250202.tar.xz
+DEVUAN_KEYRING_URL=https://files.devuan.org/devuan-archive-keyring.gpg
+declare -A BASEIMG=(
+	[alpine]=$BASE/alpine-3.24.2-x86_64-cloudinit-r0.qcow2
+	[debian]=$BASE/debian-13-genericcloud-amd64.qcow2
+	[arch]=$BASE/Arch-Linux-x86_64-cloudimg.qcow2 # only boots the Artix builder
+	[ubuntu]=$BASE/ubuntu-26.04-server-cloudimg-amd64.img
+	[void]=$BASE/void-base.qcow2
+	[artix]=$BASE/artix-base.qcow2
+	[devuan]=$BASE/devuan-base.qcow2
+)
+
+# Default NAT profiles (easiest for the public nodes, restrictive for helpers).
+declare -A DEF_PROFILE=([relay]=P1 [server]=P2 [void]=P3 [artix]=P4 [devuan]=P5 [ubuntu]=P3)
+declare -A DEF_FORWARD=([server]=44100 [relay]=44100)
+
+ssh_port() { echo $((2220 + IDX[$1])); }
+mac_mgmt() { printf '52:54:00:4c:00:%02x' "${IDX[$1]}"; }
+mac_lan() { printf '52:54:00:4c:01:%02x' "${IDX[$1]}"; }   # node side of the link
+mac_rlan() { printf '52:54:00:4c:02:%02x' "${IDX[$1]}"; }  # router side of the link
+port_r() { echo $((47100 + IDX[$1])); }                   # router end (UDP, 127.0.0.1)
+port_n() { echo $((47200 + IDX[$1])); }                   # node end
+
+die() { echo "labctl: $*" >&2; exit 1; }
+log() { echo "[labctl] $*" >&2; }
+isvm() { [[ -n "${IDX[$1]:-}" ]] || die "unknown VM '$1' (known: ${ALL_VMS[*]})"; }
+isnode() { [[ -n "${IDX[$1]:-}" && $1 != router ]] || die "'$1' is not a node (${NODES[*]})"; }
+pidof_vm() { local f=$RUN/$1.pid; [[ -f $f ]] && kill -0 "$(cat "$f")" 2>/dev/null && cat "$f"; }
+running() { pidof_vm "$1" >/dev/null; }
+
+SSH_OPTS=(-i "$KEY" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR
+	-o ConnectTimeout=5 -o ServerAliveInterval=10 -o BatchMode=yes)
+vssh() { local vm=$1; shift; ssh "${SSH_OPTS[@]}" -p "$(ssh_port "$vm")" matriline@127.0.0.1 "$@"; }
+vscp() { local vm=$1; shift; scp "${SSH_OPTS[@]}" -P "$(ssh_port "$vm")" "$@"; }
+monitor() { local vm=$1; shift; printf '%s\n' "$*" | socat - "UNIX-CONNECT:$RUN/$vm.mon" >/dev/null; }
+
+# ---------------------------------------------------------------- build
+download() { # url dest
+	[[ -s $2 ]] && return 0
+	log "downloading $(basename "$2")"
+	curl -fL --retry 3 -C - -o "$2.part" "$1" && mv "$2.part" "$2"
+}
+
+seed_iso() { # vm -> $SEED/vm.iso
+	local vm=$1 d
+	d=$(mktemp -d)
+	local pub; pub=$(cat "$KEY.pub")
+	local shell=/bin/bash pkgs="" extra_run="" pre_run=""
+	if [[ ${OSNAME[$vm]} == alpine ]]; then
+		shell=/bin/sh
+		# Alpine's sshd is built without PAM, and OpenSSH without PAM refuses
+		# every login (public key included) to an account whose shadow
+		# password starts with "!" ("User ... not allowed because account is
+		# locked"), which is what cloud-init's lock_passwd writes. "*" keeps
+		# password logins impossible but lets key logins through.
+		# Source: OpenSSH auth.c allowed_user() / LOCKED_PASSWD_PREFIX,
+		#   https://github.com/openssh/openssh-portable/blob/master/auth.c
+		pre_run="  - [sed, -i, 's/^matriline:!*:/matriline:*:/', /etc/shadow]"
+	fi
+	cat >"$d/meta-data" <<EOF
+instance-id: matriline-$vm-1
+local-hostname: $vm
+EOF
+	# --- network: mgmt = static, no gateway (slirp, provisioning only);
+	#     lan = DHCP from the home router namespace (default route, DNS).
+	if [[ $vm == router ]]; then
+		cat >"$d/network-config" <<EOF
+version: 2
+ethernets:
+  mgmt:
+    match: {macaddress: "$(mac_mgmt "$vm")"}
+    set-name: mgmt
+    dhcp4: true
+EOF
+	else
+		cat >"$d/network-config" <<EOF
+version: 2
+ethernets:
+  mgmt:
+    match: {macaddress: "$(mac_mgmt "$vm")"}
+    set-name: mgmt
+    dhcp4: false
+    addresses: [10.0.2.15/24]
+  lan:
+    match: {macaddress: "$(mac_lan "$vm")"}
+    set-name: lan
+    dhcp4: true
+EOF
+	fi
+	local setup=$LAB/guest/guest-setup.sh
+	case $vm in
+	router)
+		pkgs="[sudo, bash, iproute2, nftables, dnsmasq, ethtool, tcpdump, iputils, conntrack-tools, socat, python3]"
+		setup=$LAB/router/bootstrap.sh
+		extra_run="  - [sh, /var/lib/matriline-lab/setup.sh]"
+		;;
+	relay)
+		pkgs="[sudo, bash, python3, iproute2]"
+		extra_run="  - [sh, /var/lib/matriline-lab/setup.sh, relay, 9p]"
+		;;
+	*)
+		extra_run="  - [sh, /var/lib/matriline-lab/setup.sh, compute, ${FS[$vm]}]"
+		;;
+	esac
+	{
+		cat <<EOF
+#cloud-config
+hostname: $vm
+fqdn: $vm.lab
+manage_etc_hosts: true
+ssh_pwauth: false
+disable_root: true
+users:
+  - name: matriline
+    gecos: Matriline lab
+    shell: $shell
+    sudo: "ALL=(ALL) NOPASSWD:ALL"
+    lock_passwd: true
+    ssh_authorized_keys: ["$pub"]
+EOF
+		[[ -n $pkgs ]] && printf 'package_update: true\npackages: %s\n' "$pkgs"
+		echo "write_files:"
+		echo "  - path: /var/lib/matriline-lab/setup.sh"
+		echo "    permissions: '0755'"
+		echo "    encoding: b64"
+		echo "    content: $(base64 -w0 "$setup")"
+		echo "runcmd:"
+		[[ -n $pre_run ]] && echo "$pre_run"
+		echo "$extra_run"
+		echo "final_message: matriline-lab provisioning finished after \$UPTIME s"
+	} >"$d/user-data"
+	xorriso -as mkisofs -quiet -V cidata -J -r -o "$SEED/$vm.iso" "$d/user-data" "$d/meta-data" "$d/network-config" 2>/dev/null
+	rm -rf "$d"
+}
+
+init_netstate() {
+	mkdir -p "$NETSTATE"
+	local n
+	for n in "${NODES[@]}"; do
+		[[ -f $NETSTATE/$n.conf ]] && continue
+		cat >"$NETSTATE/$n.conf" <<EOF
+# NAT profile state for node "$n" (written by labctl, read by router netctl.sh)
+PROFILE=${DEF_PROFILE[$n]}
+FORWARDS="${DEF_FORWARD[$n]:-}"
+NETEM=""
+LINK=up
+EOF
+	done
+}
+
+cmd_build() {
+	mkdir -p "$BASE" "$VMDIR" "$SEED" "$RUN" "$KEYS" "$CAP" "$NETSTATE" "$IMG/bin"
+	mkdir -p "$SRCBIN" # shared read-only into the VMs as /opt/matriline/bin
+	[[ -f $KEY ]] || ssh-keygen -q -t ed25519 -N '' -C matriline-lab -f "$KEY"
+	download "$ALPINE_URL" "${BASEIMG[alpine]}"
+	download "$DEBIAN_URL" "${BASEIMG[debian]}"
+	download "$ARCH_URL" "${BASEIMG[arch]}"
+	download "$UBUNTU_URL" "${BASEIMG[ubuntu]}"
+	download "$VOID_URL" "$BASE/$(basename "$VOID_URL")"
+	download "$DEVUAN_KEYRING_URL" "$BASE/$(basename "$DEVUAN_KEYRING_URL")"
+	log "building pcapsampler"
+	(cd "$LAB/tools/pcapsampler" && CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o "$IMG/bin/pcapsampler" .)
+	[[ -s ${BASEIMG[void]} ]] || build_image void debian "$LAB/guest/build-void.sh" "$BASE/$(basename "$VOID_URL")"
+	[[ -s ${BASEIMG[devuan]} ]] || build_image devuan debian "$LAB/guest/build-devuan.sh" "$BASE/$(basename "$DEVUAN_KEYRING_URL")"
+	[[ -s ${BASEIMG[artix]} ]] || build_image artix arch "$LAB/guest/build-artix.sh"
+	init_netstate
+	local vm
+	for vm in "${ALL_VMS[@]}"; do
+		if [[ ! -f $VMDIR/$vm.qcow2 ]]; then
+			log "creating overlay $vm.qcow2 on $(basename "${BASEIMG[${OSNAME[$vm]}]}")"
+			qemu-img create -q -f qcow2 -o cluster_size=65536 -F qcow2 \
+				-b "../base/$(basename "${BASEIMG[${OSNAME[$vm]}]}")" "$VMDIR/$vm.qcow2" "${DISK[$vm]}"
+		fi
+		seed_iso "$vm"
+	done
+	log "build done. Next: labctl up   (first boot provisions each VM with cloud-init)"
+}
+
+# Void, Devuan and Artix have no official cloud image: their disk is built from the
+# distro's own root filesystem / bootstrap tool inside a throw-away builder VM booted
+# from a cloud image (Debian, or Arch for Artix's pacman), so no root is needed on the
+# host. The builder writes its second disk (/dev/vdb), which becomes BASEIMG[<os>].
+#   build_image <os> <builder os> <build script> [input file]
+# The script is called as: <script> [input] <ssh pubkey> <guest-setup.sh> <hostname> <fs>
+build_image() {
+	local os=$1 bos=$2 script=$3 input=${4:-}
+	log "building the $os base image in a temporary $bos builder VM"
+	local b=$VMDIR/builder.qcow2 out=$BASE/$os-build.qcow2 port=2229 d
+	rm -f "$b" "$out"
+	qemu-img create -q -f qcow2 -F qcow2 -b "../base/$(basename "${BASEIMG[$bos]}")" "$b" 8G
+	qemu-img create -q -f qcow2 "$out" "${DISK[$os]}"
+	d=$(mktemp -d)
+	printf 'instance-id: builder-1\nlocal-hostname: builder\n' >"$d/meta-data"
+	cat >"$d/user-data" <<EOF
+#cloud-config
+users:
+  - name: matriline
+    shell: /bin/bash
+    sudo: "ALL=(ALL) NOPASSWD:ALL"
+    lock_passwd: true
+    ssh_authorized_keys: ["$(cat "$KEY.pub")"]
+EOF
+	xorriso -as mkisofs -quiet -V cidata -J -r -o "$SEED/builder.iso" "$d/user-data" "$d/meta-data" 2>/dev/null
+	rm -rf "$d"
+	qemu-system-x86_64 -name builder -machine q35,accel=kvm -cpu host -smp 4 -m 2048 \
+		-display none -daemonize -pidfile "$RUN/builder.pid" -serial "file:$RUN/builder.serial.log" \
+		-monitor "unix:$RUN/builder.mon,server=on,wait=off" \
+		-drive "file=$b,if=virtio,discard=unmap" -drive "file=$out,if=virtio,discard=unmap" \
+		-drive "file=$SEED/builder.iso,if=virtio,format=raw,readonly=on" \
+		-netdev "user,id=m,ipv6=off,hostfwd=tcp:127.0.0.1:$port-:22" -device virtio-net-pci,netdev=m
+	# Keep the builder off the physical cores of the running lab VMs (tools/pin.sh).
+	"$LAB/tools/pin.sh" builder >&2 || true
+	local i
+	for i in $(seq 120); do
+		ssh "${SSH_OPTS[@]}" -p $port matriline@127.0.0.1 true 2>/dev/null && break
+		sleep 2
+	done
+	# let cloud-init finish first (it may still be using the package manager)
+	ssh "${SSH_OPTS[@]}" -p $port matriline@127.0.0.1 'sudo cloud-init status --wait >/dev/null 2>&1 || true'
+	scp "${SSH_OPTS[@]}" -P $port ${input:+"$input"} "$script" "$LAB/guest/guest-setup.sh" "$KEY.pub" \
+		matriline@127.0.0.1:/tmp/
+	ssh "${SSH_OPTS[@]}" -p $port matriline@127.0.0.1 \
+		"sudo bash /tmp/$(basename "$script") ${input:+/tmp/$(basename "$input")} /tmp/$(basename "$KEY").pub /tmp/guest-setup.sh $os ${FS[$os]}" \
+		|| { kill "$(cat "$RUN/builder.pid")"; die "$os build failed (see output above)"; }
+	ssh "${SSH_OPTS[@]}" -p $port matriline@127.0.0.1 "sudo poweroff" || true
+	for i in $(seq 60); do [[ -e /proc/$(cat "$RUN/builder.pid" 2>/dev/null || echo 0) ]] || break; sleep 1; done
+	log "compressing the $os image"
+	qemu-img convert -c -O qcow2 "$out" "${BASEIMG[$os]}"
+	rm -f "$out" "$b" "$SEED/builder.iso" "$RUN/builder.pid" "$RUN/builder.mon"
+}
+
+# ---------------------------------------------------------------- up/down
+start_virtiofsd() { # vm tag dir
+	local sock=$RUN/$1-$2.vfs.sock
+	rm -f "$sock"
+	# --sandbox namespace works unprivileged (user namespaces); the share is read-only.
+	setsid "$VIRTIOFSD" --socket-path="$sock" --shared-dir="$3" --readonly \
+		--sandbox=namespace --cache=auto --log-level=error \
+		>>"$RUN/$1-virtiofsd.log" 2>&1 </dev/null &
+	echo $! >"$RUN/$1-$2.vfs.pid"
+	local i
+	for i in $(seq 50); do [[ -S $sock ]] && return 0; sleep 0.1; done
+	die "virtiofsd for $1:$2 did not start (see $RUN/$1-virtiofsd.log)"
+}
+
+share_args() { # vm -> prints QEMU args for its host shares
+	local vm=$1 list=() s tag dir n=0
+	case ${ROLE[$vm]} in
+	router) list=("lab:$LAB:ro" "captures:$CAP:rw" "state:$STATE:rw") ;;
+	relay) list=("mlbin:$SRCBIN:ro") ;;
+	compute) list=("orca611:/opt/orca-6.1.1:ro" "openmpi:/opt/openmpi-4.1.8:ro" "mlbin:$SRCBIN:ro") ;;
+	esac
+	for s in "${list[@]}"; do
+		IFS=: read -r tag dir mode <<<"$s"
+		if [[ ${FS[$vm]} == 9p ]]; then
+			local ro=""; [[ $mode == ro ]] && ro=",readonly=on"
+			# security_model=none: files appear with the host owner/permissions,
+			# guest chown/chmod are ignored -> no root or xattrs needed on the host.
+			echo "-virtfs local,path=$dir,mount_tag=$tag,security_model=none,multidevs=remap$ro"
+		else
+			start_virtiofsd "$vm" "$tag" "$dir"
+			echo "-chardev socket,id=vfs$n,path=$RUN/$vm-$tag.vfs.sock"
+			echo "-device vhost-user-fs-pci,chardev=vfs$n,tag=$tag"
+			n=$((n + 1))
+		fi
+	done
+	if [[ ${FS[$vm]} == virtiofs ]]; then
+		# vhost-user needs guest RAM in a shareable memfd.
+		echo "-object memory-backend-memfd,id=mem,size=${RAM[$vm]}M,share=on"
+		echo "-numa node,memdev=mem"
+	fi
+}
+
+net_args() { # vm
+	local vm=$1 n
+	if [[ $vm == router ]]; then
+		echo "-netdev user,id=mgmt,ipv6=off,hostfwd=tcp:127.0.0.1:$(ssh_port router)-:22"
+		echo "-device virtio-net-pci,netdev=mgmt,mac=$(mac_mgmt router)"
+		for n in "${NODES[@]}"; do
+			echo "-netdev dgram,id=$n,local.type=inet,local.host=127.0.0.1,local.port=$(port_r "$n"),remote.type=inet,remote.host=127.0.0.1,remote.port=$(port_n "$n")"
+			echo "-device virtio-net-pci,netdev=$n,mac=$(mac_rlan "$n")"
+		done
+	else
+		# restrict=on: the management NIC cannot reach the host or the internet,
+		# only the ssh hostfwd works -> it can never carry node-to-node traffic.
+		echo "-netdev user,id=mgmt,ipv6=off,restrict=on,hostfwd=tcp:127.0.0.1:$(ssh_port "$vm")-:22"
+		echo "-device virtio-net-pci,netdev=mgmt,mac=$(mac_mgmt "$vm")"
+		echo "-netdev dgram,id=lan,local.type=inet,local.host=127.0.0.1,local.port=$(port_n "$vm"),remote.type=inet,remote.host=127.0.0.1,remote.port=$(port_r "$vm")"
+		echo "-device virtio-net-pci,netdev=lan,mac=$(mac_lan "$vm")"
+	fi
+}
+
+start_vm() {
+	local vm=$1
+	isvm "$vm"
+	if running "$vm"; then log "$vm already running"; return 0; fi
+	[[ -f $VMDIR/$vm.qcow2 ]] || die "no disk for $vm: run 'labctl build' first"
+	local args=()
+	mapfile -t args < <(share_args "$vm"; net_args "$vm")
+	local mem=(-m "${RAM[$vm]}")
+	log "starting $vm (${CPU[$vm]} vCPU, ${RAM[$vm]} MB, ssh port $(ssh_port "$vm"))"
+	# virtio-balloon free-page-reporting gives memory the guest frees back to the host:
+	# without it an idle ubuntu VM kept 9.6 GB of host RAM (lab host ran out of memory).
+	# https://www.qemu.org/docs/master/system/devices/virtio/virtio-balloon.html
+	# Keep QEMU's default VGA adapter (only "-display none"): with "-vga none"
+	# the GRUB of the Debian cloud image and of the Void image never hands
+	# over to the kernel (the VM reboots in a loop; tested with QEMU 11.1).
+	# shellcheck disable=SC2068
+	qemu-system-x86_64 -name "$vm,process=lab-$vm" -machine q35,accel=kvm -cpu host \
+		-smp "${CPU[$vm]}${SMP[$vm]:+,${SMP[$vm]}}" "${mem[@]}" \
+		-display none -daemonize -pidfile "$RUN/$vm.pid" \
+		-monitor "unix:$RUN/$vm.mon,server=on,wait=off" -serial "file:$RUN/$vm.serial.log" \
+		-drive "file=$VMDIR/$vm.qcow2,if=virtio,discard=unmap,detect-zeroes=unmap" \
+		-drive "file=$SEED/$vm.iso,if=virtio,format=raw,readonly=on" \
+		-device virtio-rng-pci \
+		-device virtio-balloon-pci,free-page-reporting=on \
+		${args[@]}
+	# One physical core per vCPU (see tools/pin.sh); non-fatal.
+	"$LAB/tools/pin.sh" "$vm" >&2 || true
+}
+
+wait_ssh() { # vm [timeout s]
+	local vm=$1 t=${2:-300} i
+	for ((i = 0; i < t; i += 2)); do
+		vssh "$vm" true 2>/dev/null && return 0
+		running "$vm" || die "$vm died (see $RUN/$vm.serial.log)"
+		sleep 2
+	done
+	die "$vm: ssh not reachable after ${t}s"
+}
+
+wait_ready() { # vm: ssh + cloud-init finished (the BUILT images have no cloud-init)
+	local vm=$1
+	wait_ssh "$vm" 600
+	if [[ -z ${BUILT[$vm]:-} ]]; then
+		vssh "$vm" 'sudo cloud-init status --wait >/dev/null 2>&1 || true'
+	fi
+}
+
+cmd_up() {
+	local vms=("$@") vm
+	[[ ${#vms[@]} -eq 0 ]] && vms=("${ALL_VMS[@]}")
+	mkdir -p "$RUN"
+	init_netstate
+	# The router first: every other VM gets its address and route from it.
+	for vm in "${vms[@]}"; do [[ $vm == router ]] && { start_vm router; wait_ready router; }; done
+	for vm in "${vms[@]}"; do [[ $vm != router ]] && start_vm "$vm"; done
+	for vm in "${vms[@]}"; do [[ $vm != router ]] && wait_ready "$vm"; done
+	for vm in "${vms[@]}"; do log "$vm is up"; done
+}
+
+stop_vm() {
+	local vm=$1 pid i
+	pid=$(pidof_vm "$vm") || { log "$vm not running"; cleanup_vm "$vm"; return 0; }
+	log "shutting down $vm"
+	vssh "$vm" 'sudo poweroff' >/dev/null 2>&1 || monitor "$vm" system_powerdown || true
+	for i in $(seq 90); do kill -0 "$pid" 2>/dev/null || break; sleep 1; done
+	if kill -0 "$pid" 2>/dev/null; then
+		log "$vm did not power off, sending ACPI powerdown"
+		monitor "$vm" system_powerdown || true
+		for i in $(seq 30); do kill -0 "$pid" 2>/dev/null || break; sleep 1; done
+	fi
+	kill -0 "$pid" 2>/dev/null && { log "$vm: forcing quit"; monitor "$vm" quit || kill "$pid"; sleep 1; }
+	cleanup_vm "$vm"
+}
+
+cleanup_vm() {
+	local vm=$1 f
+	for f in "$RUN/$vm"-*.vfs.pid; do
+		[[ -f $f ]] || continue
+		kill "$(cat "$f")" 2>/dev/null || true
+		rm -f "$f"
+	done
+	rm -f "$RUN/$vm.pid" "$RUN/$vm.mon" "$RUN/$vm"-*.vfs.sock
+}
+
+cmd_down() {
+	local vms=("$@") vm
+	if [[ ${#vms[@]} -eq 0 ]]; then vms=("${NODES[@]}"); local all=1; fi
+	local pids=()
+	for vm in "${vms[@]}"; do isvm "$vm"; [[ $vm == router ]] && continue; stop_vm "$vm" & pids+=($!); done
+	for p in "${pids[@]}"; do wait "$p" || true; done
+	# The router last (it is everybody's gateway and owns the capture).
+	for vm in "${vms[@]}"; do [[ $vm == router ]] && stop_vm router; done
+	[[ -n ${all:-} ]] && stop_vm router
+	return 0
+}
+
+cmd_kill() { # hard power cut
+	local vm=${1:?usage: labctl kill <vm>} pid
+	isvm "$vm"
+	pid=$(pidof_vm "$vm") || die "$vm not running"
+	kill -9 "$pid"
+	log "$vm: SIGKILL sent to qemu pid $pid (power cut)"
+	sleep 0.5
+	cleanup_vm "$vm"
+}
+
+# ---------------------------------------------------------------- network control
+router_apply() { # node -> re-apply its home namespace on the router (if up)
+	local n=$1
+	if running router; then
+		vssh router "sudo /mnt/lab/router/netctl.sh apply $n"
+	else
+		log "router is down: the setting is stored and applied at its next boot"
+	fi
+}
+
+bounce_link() { # node: carrier off/on so its DHCP client picks the new address
+	local n=$1
+	running "$n" || return 0
+	monitor "$n" "set_link lan off"
+	sleep 2
+	monitor "$n" "set_link lan on"
+}
+
+setconf() { # node key value
+	local f=$NETSTATE/$1.conf
+	if grep -q "^$2=" "$f"; then sed -i "s|^$2=.*|$2=$3|" "$f"; else echo "$2=$3" >>"$f"; fi
+}
+getconf() { (source "$NETSTATE/$1.conf"; eval "echo \"\${$2:-}\""); }
+
+cmd_profile() {
+	local n=${1:-} p=${2:-}
+	if [[ -z $n ]]; then
+		for n in "${NODES[@]}"; do printf '%-7s %s  forwards=%s\n' "$n" "$(getconf "$n" PROFILE)" "$(getconf "$n" FORWARDS)"; done
+		return
+	fi
+	isnode "$n"
+	[[ $p =~ ^P[1-5]$ ]] || die "usage: labctl profile <node> P1..P5"
+	init_netstate
+	setconf "$n" PROFILE "$p"
+	router_apply "$n"
+	bounce_link "$n"
+	if running "$n"; then
+		local i
+		for i in $(seq 20); do
+			vssh "$n" "ip -4 -o addr show dev lan" 2>/dev/null | grep -q "$(node_lan_ip "$n" "$p")/" && break
+			sleep 1
+		done
+		log "$n: profile $p, LAN address $(vssh "$n" "ip -4 -o addr show dev lan" | awk '{print $4}')"
+	fi
+}
+
+node_lan_ip() { # node profile -> address the node gets by DHCP
+	local i=${IDX[$1]}
+	if [[ $2 == P1 ]]; then echo "198.51.100.$((16 * i + 2))"; else echo "192.168.$i.100"; fi
+}
+node_public_ip() { # node profile -> address other nodes use to reach it
+	local i=${IDX[$1]}
+	case $2 in
+	P1) echo "198.51.100.$((16 * i + 2))" ;;
+	P5) echo "203.0.113.100" ;; # shared CGNAT address (not reachable inbound)
+	*) echo "203.0.113.$((10 + i))" ;;
+	esac
+}
+
+cmd_forward() {
+	local n=${1:-} port=${2:-}
+	[[ -n $n && -n $port ]] || die "usage: labctl forward <node> <port>[,<port>...]|none"
+	isnode "$n"
+	[[ $port == none ]] && port=""
+	[[ -z $port || $port =~ ^[0-9]+(,[0-9]+)*$ ]] || die "bad port list"
+	setconf "$n" FORWARDS "\"${port//,/ }\""
+	case $(getconf "$n" PROFILE) in
+	P4 | P5) log "note: forwards are ignored while $n is in $(getconf "$n" PROFILE)" ;;
+	P1) log "note: P1 has no NAT, every port is reachable anyway" ;;
+	P3) [[ $port == *,* ]] && log "note: P3 honours only the first forward" ;;
+	esac
+	router_apply "$n"
+}
+
+cmd_netem() {
+	local n=${1:-} what=${2:-show}
+	[[ -n $n ]] || die "usage: labctl netem <node> delay <ms>[ <jitter>] | loss <pct> | down | up | clear | show"
+	isnode "$n"
+	shift 2 || true
+	case $what in
+	delay) [[ $# -ge 1 ]] || die "delay needs a value, e.g. 100ms"
+		setconf "$n" NETEM "\"delay $*\"" ;;
+	loss) [[ $# -ge 1 ]] || die "loss needs a value, e.g. 5%"
+		setconf "$n" NETEM "\"loss $*\"" ;;
+	raw) setconf "$n" NETEM "\"$*\"" ;; # any netem option string
+	clear) setconf "$n" NETEM '""' ;;
+	down) setconf "$n" LINK down ;;
+	up) setconf "$n" LINK up ;;
+	show) ;;
+	*) die "unknown netem action '$what'" ;;
+	esac
+	[[ $what != show ]] && router_apply "$n"
+	echo "$n: link=$(getconf "$n" LINK) netem='$(getconf "$n" NETEM)'"
+	if running router && [[ $what == show ]]; then
+		vssh router "sudo ip netns exec h-$n tc qdisc show dev lan; sudo ip netns exec h-$n tc qdisc show dev wan"
+	fi
+}
+
+# ---------------------------------------------------------------- info
+cmd_status() {
+	printf '%-7s %-8s %-7s %-5s %-6s %-8s %-3s %-16s %-15s %s\n' VM STATE PID SSH vCPU RAM-MB NAT LAN-IP PUBLIC-IP RSS-MB
+	local vm pid st rss prof lan pub
+	for vm in "${ALL_VMS[@]}"; do
+		pid=$(pidof_vm "$vm") && st=up || { st=down; pid=-; }
+		rss=-; [[ $pid != - ]] && rss=$(($(awk '/VmRSS/{print $2}' "/proc/$pid/status") / 1024))
+		prof=-; lan=-; pub=-
+		if [[ $vm != router && -f $NETSTATE/$vm.conf ]]; then
+			prof=$(getconf "$vm" PROFILE)
+			lan=$(node_lan_ip "$vm" "$prof")
+			pub=$(node_public_ip "$vm" "$prof")
+			[[ $(getconf "$vm" LINK) == down ]] && prof="$prof!"
+		fi
+		printf '%-7s %-8s %-7s %-5s %-6s %-8s %-3s %-16s %-15s %s\n' "$vm" "$st" "$pid" "$(ssh_port "$vm")" \
+			"${CPU[$vm]}" "${RAM[$vm]}" "$prof" "$lan" "$pub" "$rss"
+	done
+}
+
+cmd_captures() {
+	local st=$CAP/pcapsampler-state.json
+	echo "capture dir: $CAP"
+	echo "files: $(find "$CAP" -name 'capture-*.pcap' | wc -l)   on disk: $(du -sh "$CAP" | cut -f1)"
+	if [[ -f $st ]]; then
+		python3 - "$st" <<'EOF'
+import json, sys
+s = json.load(open(sys.argv[1]))
+t = s["total_bytes"]
+stage = s["stage"]
+print(f"stored (monotonic): {t/1e9:.3f} GB of 6 GB   sampling: keep 1 of {stage}"
+      f"{'   STOPPED (limit reached)' if s['stopped'] else ''}")
+print(f"packets eligible={s['eligible']} kept={s['kept']} current={s['current_file'] or '-'} updated={s['updated']}")
+EOF
+	else
+		echo "no state yet (router never captured)"
+	fi
+}
+
+cmd_ssh() {
+	local vm=${1:?usage: labctl ssh <vm> [cmd...]}
+	isvm "$vm"; shift
+	if [[ $# -eq 0 ]]; then
+		ssh "${SSH_OPTS[@]/BatchMode=yes/BatchMode=no}" -t -p "$(ssh_port "$vm")" matriline@127.0.0.1
+	else
+		vssh "$vm" "$@"
+	fi
+}
+
+cmd_help() {
+	cat <<'EOF'
+labctl - Matriline virtual lab (all VMs as the normal user, KVM + QEMU)
+
+  build                     download/prepare base images, overlays, seeds, built images (idempotent)
+  up [vm...]                start VMs (default: all; router first) and wait until ready
+  down [vm...]              clean shutdown (default: all; router last)
+  kill <vm>                 hard power cut (SIGKILL to qemu)
+  ssh <vm> [cmd...]         ssh as user matriline (passwordless sudo inside)
+  status                    VM state, NAT profile, addresses, host RSS
+  profile [<node> P1..P5]   show / set the NAT profile of a node (applied live)
+  forward <node> <port>|none   port forward(s) on the node's home router (P2/P3)
+  netem <node> delay 100ms [20ms] | loss 5% | raw <netem opts> | clear | down | up | show
+  captures                  capture size and sampling stage
+  console <vm>              follow the serial console log
+  monitor <vm> <cmd>        send a command to the QEMU monitor
+  addr <node>               public address of a node under its current profile
+VMs: router relay server void artix devuan ubuntu
+EOF
+}
+
+main() {
+	local c=${1:-help}
+	shift || true
+	case $c in
+	build) cmd_build "$@" ;;
+	up) cmd_up "$@" ;;
+	down) cmd_down "$@" ;;
+	kill) cmd_kill "$@" ;;
+	ssh) cmd_ssh "$@" ;;
+	status) cmd_status ;;
+	profile) cmd_profile "$@" ;;
+	forward) cmd_forward "$@" ;;
+	netem) cmd_netem "$@" ;;
+	captures) cmd_captures ;;
+	console) tail -f "$RUN/${1:?vm}.serial.log" ;;
+	monitor) isvm "${1:?vm}"; printf '%s\n' "${*:2}" | socat - "UNIX-CONNECT:$RUN/$1.mon" ;;
+	addr) isnode "${1:?node}"; node_public_ip "$1" "$(getconf "$1" PROFILE)" ;;
+	wait) for v in "$@"; do wait_ready "$v"; done ;;
+	help | -h | --help) cmd_help ;;
+	*) die "unknown command '$c' (try: labctl help)" ;;
+	esac
+}
+main "$@"

@@ -1,0 +1,932 @@
+# source a0b4a6f30feccf8c
+# =============================================================================
+# Configuração do servidor Matriline
+# =============================================================================
+# Este arquivo tem três partes:
+#   BÁSICO        as poucas opções que a maioria dos servidores muda (comece aqui)
+#   AVANÇADO      todo o resto, por seção; os padrões servem para quase todo projeto
+#   EXPLANATIONS  o que cada opção faz (explicações), na mesma ordem de AVANÇADO
+# Seções:    [general] idioma              [spool] diretório de trabalho
+#            [network] endereço, segurança, inscrição, bloqueios
+#            [tasks] fila, novas tentativas, agendador, trabalhos de vários núcleos
+#            [orca] versão da campanha, verificações do ORCA dos clientes
+#            [results] arquivos devolvidos   [report] o que os clientes informam
+#            [verify] verificações de integridade, reputação, quarentena
+#            [storage] limites de disco      [alerts] e-mail, Telegram ou um programa
+#            [update] novas versões do Matriline    [log] nível do log
+# Uma seção pode aparecer em mais de uma parte (suas configurações simplesmente se
+# somam).
+# Sintaxe: cabeçalhos [section], "key = value", os comentários começam com '#'. Os
+# tamanhos aceitam KB/MB/GB/KiB/MiB/GiB ou "unlimited"; as durações 90s, 30m, 1h. Toda a
+# política da rede é definida só aqui: os clientes a recebem ao se conectar e não podem
+# mudá-la.
+# A maioria das opções se aplica com o servidor rodando: "matriline-server config edit"
+# verifica o arquivo e o aplica (as opções marcadas [restart] precisam de um reinício).
+
+
+# ================================ BÁSICO ======================================
+[general]
+# en: language of the menus, help, web page and alerts: "en", "es", "fr", "pt", "ar" (empty: this computer's)
+# es: idioma de los menús, la ayuda, la página web y las alertas: "en", "es", "fr", "pt", "ar" (vacío: el de esta computadora)
+# fr: langue des menus, de l'aide, de la page web et des alertes : "en", "es", "fr", "pt", "ar" (vide : celle de cet ordinateur)
+# pt: idioma dos menus, da ajuda, da página web e dos alertas: "en", "es", "fr", "pt", "ar" (vazio: o deste computador)
+# ar: لغة القوائم والمساعدة وصفحة الويب والتنبيهات: "en", "es", "fr", "pt", "ar" (فارغ: لغة هذا الحاسوب؛ الترجمة العربية آلية ولم تُراجَع بعد)
+language =
+
+
+[spool]
+# diretório de trabalho (contém input/ output/ ... state/); "." = o diretório deste
+# arquivo [restart]
+root = .
+
+
+[network]
+# Porta em que este servidor espera os computadores auxiliares. Abra-a no firewall e,
+# atrás de um roteador, redirecione-a (port forwarding) para este computador [restart].
+# Exemplo: 44100
+listen = 44100
+
+# Endereço que os auxiliares discam para chegar aqui: seu IP público (ou um nome de
+# domínio) e a porta acima. É gravado em cada credencial: preencha-o antes de
+# "keys issue". Com connection = relay pode ficar vazio.
+# Exemplos: 203.0.113.7:44100   lab.example.org:44100
+advertise =
+
+# Como a conexão é protegida: "tls" (recomendado, tudo criptografado), "auth" (sem
+# criptografia) ou "none" (só redes de teste)
+security = tls
+
+# Como se encontram: "direct" (os auxiliares chegam a este servidor pela porta acima) ou
+# "relay" (se você não pode abrir nenhuma porta: ambos se conectam a um relay).
+# Exemplo: connection = "relay"
+connection = direct
+
+# endereço:porta do relay, só com connection = relay. Exemplo: relay.example.org:443
+relay_address =
+
+# Quem pode entrar: "issued" (você cria um arquivo de credencial por auxiliar;
+# recomendado), "register" (o auxiliar pede para entrar com um token e você aprova) ou
+# "open" (PERIGO: qualquer um que tenha o endereço)
+enrollment = issued
+
+
+[tasks]
+# "order" (ordem da fila) ou "learned" (trabalhos longos para os clientes rápidos)
+scheduler = order
+
+# Tempo máximo que um cálculo pode rodar em um computador. Ao atingi-lo, o trabalho para e
+# vai para errors/ com seus orbitais até então, e 'retry' continua a partir deles.
+# 0 = sem limite. Exemplos: 12h   3d
+max_job_time = 1d
+
+
+[orca]
+# versão do ORCA desta campanha: todos os clientes precisam usá-la
+version = 6.1.1
+
+# "fingerprint" (o ORCA dos clientes deve coincidir com as referências abaixo) ou "version"
+# (confiar neles)
+check = fingerprint
+
+# um cliente com outra versão do ORCA: "refuse", "separate" ou "errors"
+other_versions = refuse
+
+# instalação(ões) do ORCA neste computador, separadas por vírgulas (o init a preenche)
+reference_paths = /opt/orca-6.1.1
+
+# "builtin" = as versões oficiais desta versão (Linux, Windows, macOS); mais arquivos JSON
+# de "matriline-client fingerprint"
+accepted_fingerprints = builtin
+
+
+[verify]
+# verificações de integridade dos resultados (as opções estão em AVANÇADO [verify])
+enabled = true
+
+
+[storage]
+# espaço em disco que o projeto pode usar (unlimited, ou p. ex. 500G)
+limit = unlimited
+
+
+[alerts]
+# Os alertas chegam até você por e-mail, por Telegram ou pelos dois. Passo a passo para
+# cada um: no final deste arquivo, em [alerts]. Depois teste: matriline-server
+# test-alert
+# --- por e-mail
+email_enabled = false
+
+# o servidor de e-mail e sua porta, p. ex. smtp.gmail.com:587
+smtp_server =
+
+# a conta que envia (aquela em que você criou a senha de app)
+smtp_user =
+
+# o arquivo com a senha de app dessa conta (caminho completo; nunca a senha aqui)
+smtp_password_file =
+
+# o remetente mostrado (normalmente o mesmo endereço)
+from =
+
+# quem recebe os alertas (separados por vírgulas)
+to =
+
+# --- por Telegram (primeiro envie /start ao seu bot a partir do seu Telegram)
+telegram_enabled = false
+
+# o arquivo com o token do bot (caminho completo; nunca o token aqui)
+telegram_token_file =
+
+# seu id de chat (um número; o @userinfobot informa)
+telegram_chat =
+
+# --- ou um programa seu, executado a cada alerta (evento, mensagem); vazio = nenhum
+command =
+
+
+[update]
+# novas versões do Matriline: "off", "alert" (me avise; 'update apply' instala) ou "auto".
+# EXPERIMENTAL: não recomendado para um projeto em andamento (veja EXPLANATIONS)
+mode = off
+
+
+[log]
+# "debug", "info", "warn" ou "error"
+level = info
+
+
+# =============================== AVANÇADO ====================================
+# Os valores padrão servem para quase todo projeto; cada opção é explicada no final do
+# arquivo.
+
+
+[spool]
+keep_empty_dirs = input
+
+
+[network]
+accept_nosecurity_clients = false
+
+credential_valid = 48h
+
+blocked_ips =
+
+max_sessions = 256
+
+ban_garbage_after = 10
+
+ban_garbage_window = 1h
+
+ban_garbage_duration = 168h
+
+ban_auth_after = 20
+
+ban_auth_window = 24h
+
+ban_auth_duration = 24h
+
+ban_trust_known = true
+
+
+[tasks]
+reuse_checkpoints = true
+
+heartbeat_seconds = 60
+
+task_timeout = 1h
+
+scan_interval = 5s
+
+settle_time = 2s
+
+order = alphanumeric
+
+input_extensions = .inp
+
+duplicate_when_idle = true
+
+max_replicas = 2
+
+orca_error_hosts = 2
+
+max_attempts = 6
+
+error_alert_after = 3
+
+error_pause_after = 10
+
+error_window = 24h
+
+learned_min_samples = 30
+
+parallel = downgrade
+
+max_procs = 8
+
+
+[orca]
+accepted_tree_hashes =
+
+
+[results]
+include = *
+
+exclude = *.tmp, *.tmp.*
+
+max_bytes = 2G
+
+compress_level = 6
+
+
+[report]
+fields = *
+
+percentiles = 50, 90, 99
+
+sample_seconds = 5
+
+
+[verify]
+fingerprints = true
+
+output_consistency = true
+
+timing_plausibility = true
+
+scf_recheck_fraction = 0.05
+
+gradient_check_fraction = 0.05
+
+hessian_probe_fraction = 0.05
+
+canary_rate = 0
+
+replication_rate = 0
+
+probation_results = 5
+
+probation_replication = 0.2
+
+probation_multiplier = 3
+
+on_failure = weird
+
+energy_tolerance = 1e-5
+
+check_max_scf_iterations = 10
+
+hessian_tolerance = 0.005
+
+reputation = true
+
+trusted_after = 50
+
+trusted_multiplier = 0.5
+
+recent_failure_window = 720h
+
+recent_failure_multiplier = 2
+
+second_opinion = true
+
+second_opinion_unavailable = weird
+
+retry_weird = true
+
+rescue_weird = true
+
+quarantine_after = 3
+
+quarantine_window = 24h
+
+quarantine_recheck = 10
+
+quarantine_escalate_fraction = 0.25
+
+quarantine_auto_release = true
+
+
+[storage]
+warn_percent = 90
+
+min_free = auto
+
+
+[alerts]
+smtp_password_env = MATRILINE_SMTP_PASSWORD
+
+# cada alerta: off, now (na hora) ou summary (no resumo agendado)
+# o disco está quase cheio, ou resultados são recusados por falta de espaço
+storage = now
+
+# um resultado falhou numa verificação (foi para weird/)
+verify_failed = now
+
+# um cliente foi posto em quarentena (cada resultado dele é verificado)
+quarantine = now
+
+# um cliente parou de informar os cálculos que estava rodando
+client_lost = now
+
+# uma tarefa foi perdida ou duplicada ('check')
+tasks = now
+
+# todas as entradas estão prontas: nada na fila, rodando ou em verificação
+campaign_done = now
+
+# uma nova versão do Matriline, ou um problema ao instalá-la
+update = now
+
+# uma tarefa foi para errors/ (o ORCA falhou), ou um cliente foi pausado depois de erros
+errors = summary
+
+# um cliente com uma versão do ORCA diferente da desta campanha
+orca_version = summary
+
+# um novo cliente entrou com sua credencial
+enrolled = summary
+
+# um endereço foi bloqueado (scanners de portas, logins que falharam)
+ban = summary
+
+# o mesmo alerta enviado "now" no máximo uma vez por este intervalo (os demais vão para
+# o resumo)
+now_limit = 1h
+
+# quando o resumo é enviado: off, hourly, every 6h, daily 08:00, daily 08:00 20:00,
+# weekdays 08:00, weekends 10:00, mon,thu 09:00, mon-fri 18:30 ...
+summary = daily 08:00
+
+# enviar o resumo também quando nada aconteceu ("tudo certo", com o estado do projeto)
+summary_when_quiet = false
+
+
+[hooks]
+result =
+
+done =
+
+
+[web]
+palette = A
+
+mol_rotation = 20s
+
+mol_background = auto
+
+white =
+
+black =
+
+gray =
+
+dark =
+
+light =
+
+
+[update]
+check_interval = 720h
+
+url = https://github.com/agaloya/matriline/releases
+
+client_wait = 24h
+
+
+# ============================= EXPLANATIONS ==================================
+#
+# ---------------- [general] ----------------
+# >> language
+# en: The language of what people read: console menus, 'help', the web page, the alerts.
+#   Empty: this computer's language (LANG, or the Windows display language); English when
+#   there is no translation. Logs and error messages stay in English.
+# es: El idioma de lo que se lee: menús de la consola, 'help', la página web, las alertas.
+#   Vacío: el idioma de esta computadora; inglés si no hay traducción. El registro y los
+#   mensajes de error quedan en inglés.
+# fr: La langue de ce qu'on lit : menus de la console, 'help', la page web, les alertes.
+#   Vide : la langue de cet ordinateur ; l'anglais s'il n'y a pas de traduction. Le journal
+#   et les messages d'erreur restent en anglais.
+# pt: O idioma do que se lê: menus do console, 'help', a página web, os alertas. Vazio: o
+#   idioma deste computador; inglês se não houver tradução. O log e as mensagens de erro
+#   ficam em inglês.
+#
+# ---------------- [spool] ----------------
+# >> root
+# Diretório de trabalho. Contém input/ output/ completed/ cancelled/ paused/ weird/
+# errors/ mais o diretório interno state/. Os caminhos relativos são relativos a este
+# arquivo.
+#
+# >> keep_empty_dirs
+# Diretórios do spool cujos subdiretórios vazios são mantidos (separados por vírgulas).
+# Nos demais, um subdiretório que fica vazio quando sua última tarefa segue adiante é
+# removido. input = sua própria estrutura para novos lotes é mantida; p. ex. "input,
+# output" mantém também a de output/.
+# ---------------- [network] ----------------
+# >> accept_nosecurity_clients
+# accept_nosecurity_clients: dar tarefas a clientes compilados com "-tags nosecurity"
+# (sem sandbox, sem auditoria de processos; pensado para máquinas próprias de
+# confiança). Desligado: eles são avisados disso e não recebem tarefas.
+# >> listen
+# Endereços TCP em que escutar [restart]. Porta padrão 44100 (não atribuída pela IANA).
+# Uma porta sozinha escuta em todos os endereços deste computador. Para escutar em um só
+# (um computador com várias redes), escreva endereço:porta, p. ex. 192.168.1.10:44100.
+# Várias entradas são separadas por vírgulas, p. ex. 44100, 443.
+# Nas redes mais restritivas só se permite TCP/443 de saída; acrescentar "443" (exige
+# privilégios na maioria dos sistemas) permite que esses clientes cheguem a um servidor
+# acessível diretamente.
+# >> advertise
+# Endereço (host:port) gravado nos arquivos de credencial emitidos para os clientes.
+# Deixe vazio para que seja perguntado ao emitir chaves.
+# >> security
+# Modo de segurança para TODAS as conexões:
+#   tls  - (padrão, recomendado) TLS 1.3, os dois lados autenticados, tudo
+#          criptografado.
+#   auth - cada mensagem autenticada e protegida contra modificação e repetição, mas SEM
+#          criptografia: qualquer um no caminho da rede pode ler entradas e resultados.
+#   none - nenhuma proteção depois da verificação inicial de identidade. PERIGO: um
+#          atacante no caminho pode ler e alterar tudo. Só para redes de teste isoladas.
+# >> connection, relay_address
+# Como os clientes chegam a este servidor:
+#   direct - os clientes se conectam a esta máquina. O servidor precisa de UMA porta TCP
+#            acessível (redirecione-a no seu roteador se o servidor estiver atrás de
+#            NAT). Os clientes nunca precisam de redirecionamento de portas.
+#   relay  - o servidor e os clientes se conectam PARA FORA a um relay com IP público
+#            (matriline-relay). Ninguém precisa de redirecionamento de portas. O relay
+#            só repassa o fluxo protegido de ponta a ponta e não pode lê-lo (não pode
+#            ler nada útil com security = tls; com auth/none ele PODE ler o texto
+#            aberto).
+# >> enrollment
+# Quem pode entrar:
+#   issued   - (padrão) o administrador cria um arquivo de credencial por usuário com
+#              "matriline-server keys issue <name>" e o entrega. O arquivo é um bilhete
+#              de uso único: na primeira conexão o cliente cria sua própria chave de
+#              dispositivo (ela nunca sai daquele computador) e o arquivo deixa de
+#              funcionar, então uma cópia roubada depois não dá acesso. Revogável a
+#              qualquer momento.
+#   register - os usuários geram sua própria chave e entram com um token de uso único
+#              ("matriline-server keys token"); o administrador os aprova
+#              ("matriline-server clients approve <id>").
+#   open     - PERIGO: qualquer máquina que conheça o endereço e a chave do servidor
+#              pode entrar e vai receber seus arquivos de entrada.
+# >> credential_valid
+# Por quanto tempo uma credencial de "keys issue" pode ser usada para sua única
+# inscrição.
+# >> blocked_ips
+# Endereços IP recusados antes de qualquer handshake (separados por vírgulas),
+# permanentemente.
+# >> max_sessions
+# Máximo de clientes conectados ao mesmo tempo; novas conexões são recusadas até que uma
+# termine (um limite contra uma enxurrada de conexões; aumente-o para uma campanha com
+# mais computadores auxiliares).
+# >> ban_garbage_after, ban_garbage_window, ban_garbage_duration
+# Bloqueios automáticos (liste-os com "matriline-server bans", suspenda um com
+# "matriline-server bans lift <address>"). 0 numa opção *_after desativa essa regra.
+# Conexões que nunca falam o protocolo do Matriline (scanners de portas, outros
+# protocolos, lixo, conexões vazias): esta quantidade dentro da janela bloqueia o
+# endereço.
+# >> ban_auth_after, ban_auth_window, ban_auth_duration
+# Conexões que falam o protocolo mas não são admitidas (chave desconhecida, errada ou
+# revogada, token inválido). Clientes honestos podem cair nisso de vez em quando (uma
+# credencial antiga, uma conexão que cai no meio do handshake), por isso a tolerância é
+# maior e o bloqueio é temporário. Reconexões de clientes admitidos nunca contam.
+# >> ban_trust_known
+# Nunca bloquear automaticamente um endereço do qual um cliente registrado se conectou
+# nas últimas 24 h: num NAT compartilhado (escritório, hotel, operadora de celular) um
+# atacante poderia, do contrário, deixar de fora um computador auxiliar legítimo.
+# As tentativas que falharem continuam sendo recusadas e geram alertas.
+#
+# ---------------- [tasks] ----------------
+# >> reuse_checkpoints
+# Privacidade das entradas: os clientes veem a molécula e o método do que calculam
+# (precisam ver, para rodar o ORCA); os nomes reais dos arquivos, os subdiretórios e
+# quem os enviou nunca são enviados.
+# Não implementado, uma sugestão para quem for estender este código: uma opção para
+# manter entradas sensíveis (p. ex. um subdiretório como input/private/) só para
+# clientes escolhidos e, no hardware que oferecer isso (AMD SEV-SNP, Intel TDX),
+# máquinas virtuais confidenciais atestadas cuja memória o dono do computador não pode
+# ler (docs/DECISIONS.md D44).
+# reuse_checkpoints: quando um computador falha numa tarefa (falha da máquina ou tempo
+#   esgotado, não um erro do ORCA), guardar os orbitais (.gbw) que ele alcançou e
+#   entregá-los ao próximo computador: o ORCA parte deles sozinho (o AutoStart lê <input
+#   name>.gbw), então um SCF longo não recomeça do zero e a entrada não é alterada. Só de
+#   computadores de confiança (ativos, fora do período de prova, sem verificação
+#   reprovada): um .gbw forjado não pode mudar o método, mas poderia levar o SCF a outra
+#   solução autoconsistente (p. ex. um estado de simetria quebrada de um radical).
+# >> heartbeat_seconds
+# Os clientes enviam um sinal de vida com esta frequência (segundos).
+# >> task_timeout
+# Uma tarefa em andamento da qual o cliente não dá notícia por este tempo é entregue a
+# outro computador (o primeiro resultado válido continua ganhando se o cliente original
+# voltar depois).
+# >> scan_interval, settle_time
+# Com que frequência input/ é verificado de novo em busca de arquivos novos, e por
+# quanto tempo um arquivo novo precisa ficar sem mudanças antes de entrar na fila
+# (protege contra arquivos copiados pela metade).
+# >> order, input_extensions
+# Ordem em que as entradas são distribuídas: alphanumeric (ordem natural de
+# subdiretórios e arquivos, então 1list, 2list, ... 10list são respeitados) ou random.
+# Prioridades explícitas definidas com "matriline-server priority" sempre ganham.
+# >> duplicate_when_idle, max_replicas
+# Quando não resta nenhuma tarefa na fila, tarefas em andamento podem ser duplicadas em
+# computadores ociosos para que uma máquina muito lenta não atrase o fim de uma
+# campanha. Ganha o primeiro resultado verificado.
+# >> orca_error_hosts
+# Uma tarefa vai para errors/ depois que o próprio ORCA falha nesta quantidade de
+# computadores DIFERENTES.
+# Problemas da máquina (queda de energia, falta de memória, desconexão) não contam.
+# >> max_attempts
+# Limite absoluto de tentativas por tarefa (por qualquer causa) antes de errors/.
+# >> max_job_time
+# Tempo máximo de um trabalho em um computador (trabalhos enviados a partir de então). O
+# auxiliar para o trabalho ao atingi-lo e devolve o que tem; a tarefa vai para errors/
+# com seus orbitais (.gbw) e uma nota (verdict) que diz como continuar: aumente o limite,
+# depois 'matriline-server retry errors/<tarefa>', e o próximo computador parte desses
+# orbitais. O limits.max_task_time próprio de um auxiliar, se for menor, só passa a
+# tarefa para outro computador.
+# >> error_alert_after, error_pause_after, error_window
+# Erros de um cliente (erros do ORCA ou falhas da máquina, não trapaça):
+# error_alert_after: alerta o administrador depois desta quantidade de erros seguidos (0
+# = desligado).
+# error_pause_after: pausa o cliente (nenhuma tarefa nova até "clients release <name>")
+#   depois desta quantidade de erros dentro de error_window, p. ex. um computador que não
+#   consegue rodar certo tipo de trabalho.
+# >> scheduler, learned_min_samples
+# scheduler: qual tarefa da fila um cliente recebe, dentro do nível de prioridade mais
+# alto:
+#   order   - (padrão) a ordem acima.
+#   learned - o servidor aprende com seus resultados aceitos quanto tempo leva cada tipo
+#             de trabalho (método, base, tamanho, Opt/Freq, camada aberta) e quão rápido
+#             é cada cliente, e então dá os trabalhos com maior tempo previsto aos
+#             clientes mais rápidos e os mais curtos aos mais lentos (campanhas mais
+#             curtas com hardware variado). Antes ele precisa de learned_min_samples
+#             resultados; até lá, e para clientes ou entradas que não consegue avaliar,
+#             volta a usar "order". Veja "matriline-server model".
+# >> parallel, max_procs
+# parallel: entradas que pedem vários núcleos ("%pal nprocs N", "! PALN"):
+#   downgrade - (padrão) rodam em um núcleo, como qualquer outro trabalho (vários
+#               trabalhos independentes aproveitam melhor os núcleos: medido, 2 núcleos
+#               deixam um trabalho ~1.25x mais rápido).
+#   honor     - rodam com N processos MPI (no máximo max_procs) num cliente que aceita
+#               trabalhos desse tamanho (seu resources.max_cores_per_job) e tem N
+#               núcleos livres; enquanto nenhum tiver, a fila atende as tarefas
+#               seguintes.
+#
+# ---------------- [orca] ----------------
+# >> version
+# Versão do ORCA desta campanha: todos os clientes precisam usá-la. Defina-a antes das
+# primeiras entradas; se ela mudar depois, o servidor avisa (log, alerta, registro), já
+# que então output/ mistura resultados de duas versões.
+# >> check
+# check: como o ORCA de um cliente é verificado.
+#   fingerprint - (padrão) cada programa que um resultado rodou precisa pertencer a uma
+#                 das compilações de referência abaixo: coloque aqui o ORCA de cada
+#                 sistema operacional e arquitetura que seus clientes usam (Linux x86-64,
+#                 Linux arm64, Windows, macOS), descompactado; o servidor só calcula o
+#                 hash dos arquivos deles, não executa os de outras plataformas.
+#   version     - confiar nas instalações dos clientes: só a versão e a compilação que o
+#                 ORCA escreve em cada saída (e o manifesto) precisam ser as desta
+#                 campanha.
+# >> other_versions
+# other_versions: o que fazer com um cliente que não tem a versão desta campanha.
+#   refuse   - (padrão) não recebe tarefas; ele é informado de qual versão instalar, e o
+#              administrador recebe um alerta (orca_version).
+#   separate - calcula com sua própria versão; seus resultados contam como prontos, mas
+#              são guardados à parte, em other-versions/<version>/output|weird|errors,
+#              nunca em output/. Eles NÃO são verificados de forma cruzada (uma
+#              verificação com outra versão compararia dois programas), então um cliente
+#              poderia declarar uma versão antiga para escapar das verificações: use só
+#              com clientes de confiança.
+#   errors   - calcula com sua própria versão, seus resultados vão para
+#              errors/other-versions/<version>/ como referência, e a entrada continua na
+#              fila para um cliente com a versão desta campanha.
+# >> reference_paths
+# Instalação(ões) de referência nesta máquina usadas para calcular as impressões
+# digitais esperadas. Vários caminhos são permitidos, p. ex. as compilações x86-64 e
+# arm64 da mesma versão (descompactadas aqui; de uma compilação para outra arquitetura
+# se calcula a impressão digital, mas ela não pode ser executada).
+# >> accepted_fingerprints
+# Instalações aceitas pela sua impressão digital completa, separadas por vírgulas.
+# "builtin" = as compilações oficiais do ORCA de orca.version conhecidas por este
+# programa (6.1.1: Linux x86-64 e arm64, Windows x86-64, macOS x86-64 e arm64): só
+# hashes, então este servidor não precisa de ORCA nenhum (reference_paths pode ficar
+# vazio; os clientes calculam cada verificação). Outras compilações: arquivos JSON
+# feitos num cliente com "matriline-client fingerprint". Melhor que accepted_tree_hashes:
+# assim o servidor pode verificar cada programa que um resultado rodou, também para
+# compilações que ele não consegue executar aqui ou que não imprimem hash do GIT (a
+# compilação oficial arm64 do ORCA 6.1.1).
+# >> accepted_tree_hashes
+# Impressões digitais de instalação aceitas adicionais (hashes de árvore), separadas por
+# vírgulas, p. ex. quando a máquina do servidor não tem ORCA instalado.
+#
+# ---------------- [results] ----------------
+# >> include, exclude
+# Quais arquivos produzidos pelo ORCA são devolvidos (padrões glob). Padrão: tudo,
+# exceto os arquivos temporários do ORCA (*.tmp e *.tmp.N: integrais e intermediários,
+# muitas vezes de vários GB, inúteis depois; um trabalho DLPNO que falhou deixou 6.7 GB
+# de *.tmp.0 no laboratório). Os clientes apagam o que não é devolvido. Para recebê-los
+# mesmo assim, deixe exclude vazio.
+# Exemplo para economizar banda: include = *.out, *.property.txt, *.xyz
+# >> max_bytes
+# Recusa resultados maiores que isto (protege seu disco de clientes maliciosos).
+#   Suficiente para resultados comuns (.gbw, .hess, trajetórias); os temporários do ORCA
+#   são excluídos acima.
+# >> compress_level
+# Compressão dos arquivos transferidos: 0 = nenhuma ... 9 = o menor possível (mais CPU).
+# 6 é equilibrado.
+#
+# ---------------- [report] ----------------
+# >> fields
+# Campos do relatório de metadados de cada execução (matriline.report) coletados dos
+# clientes.
+# "*" = todos. Prefixos que terminam em '*' selecionam grupos, p. ex.: time.*, cpu.*,
+# mem.*, net.*
+# >> percentiles
+# Percentis informados para as séries amostradas (temperaturas, memória, RTT, ...).
+# >> sample_seconds
+# Período de amostragem da telemetria do cliente enquanto um trabalho roda (segundos).
+#
+# ---------------- [verify] ----------------
+# >> enabled
+# Não implementado, uma sugestão para quem for estender este código: atestação de
+# hardware. Em CPUs com computação confidencial (AMD SEV-SNP, Intel TDX) um cliente
+# poderia rodar o ORCA numa máquina virtual confidencial atestada cuja memória o dono do
+# computador não pode ler nem alterar, e enviar um relatório assinado pelo hardware de
+# que exatamente aquela imagem rodou; os resultados desses clientes poderiam então
+# precisar de menos verificações das listadas abaixo, e suas entradas ficariam privadas
+# (docs/DECISIONS.md D44).
+# Verificação de integridade. Todo resultado é sempre assinado pelo seu cliente e
+# anotado no registro encadeado por hashes do servidor (isso identifica quem o
+# produziu). Os valores padrão ligam todas as camadas que não custam cálculo e verificam
+# uma amostra de 5 % com as verificações ativas baratas: nas rodadas de ataque do
+# laboratório isso pegou todas as falsificações com bem menos de 1 % de cálculo extra
+# (docs/SECURITY_TESTS.md). Um cliente em quarentena continua calculando, mas CADA
+# resultado que ele devolve é verificado.
+# Cada uma das outras camadas custa cálculo extra; as frações vão de 0 a 1 (1 = todos os
+# resultados).
+#
+# enabled: interruptor geral. false = nenhuma camada de integridade, digam o que
+#   disserem as opções abaixo (para computadores de total confiança); os resultados
+#   continuam assinados. Os resultados ainda são verificados quanto a erros do ORCA e
+#   otimizações que não convergiram. true = aplicar as opções abaixo.
+# >> fingerprints
+#
+# fingerprints: o cliente calcula o hash de toda a instalação do ORCA e de cada programa
+#   que realmente rodou. Detecta versões erradas e instalações corrompidas. Um cliente
+#   modificado de propósito pode mentir, então isto pega sobretudo erros honestos.
+# >> output_consistency
+# output_consistency: analisa a saída do ORCA: versão e hash do GIT, término normal,
+#   entrada repetida idêntica à entrada da tarefa, módulos esperados. Gratuito,
+#   recomendado.
+# >> timing_plausibility
+# timing_plausibility: o tempo de execução declarado pelo cliente e impresso pelo ORCA
+#   não pode passar do tempo desde que a tarefa foi atribuída (+2 min). Sinaliza saídas
+#   copiadas de outro lugar. Gratuito.
+# >> scf_recheck_fraction
+# scf_recheck_fraction: recalcula a energia a partir dos orbitais devolvidos (.gbw) com
+#   UMA iteração SCF em outro computador: um resultado convergido autêntico reproduz a
+#   energia e converge de imediato. Custo ~5% de um SCF. Requer que os arquivos .gbw
+#   sejam devolvidos.
+# >> gradient_check_fraction
+# gradient_check_fraction: em otimizações, calcula o gradiente na geometria final em
+#   outro computador; ele precisa ser ~0. Custo ~um gradiente.
+# >> hessian_probe_fraction
+# hessian_probe_fraction: em frequências, compara H*v da hessiana devolvida com uma
+#   diferença finita de dois gradientes ao longo de uma direção aleatória secreta v.
+# >> canary_rate
+# canary_rate: por tarefa real atribuída, probabilidade de enviar também a esse cliente
+#   uma tarefa cuja resposta é conhecida (um resultado passado verificado, rotacionado,
+#   transladado e reordenado ao acaso para que não possa ser reconhecido). Custo:
+#   canary_rate single points extras por tarefa.
+# >> replication_rate
+# replication_rate: fração das tarefas rodadas também num segundo computador, diferente,
+# e comparadas.
+# >> probation_results
+# Clientes novos recebem "probation_multiplier" vezes mais verificações nos seus
+# primeiros N resultados.
+# >> probation_replication, probation_multiplier
+# probation_replication: durante o período de prova, recalcular também esta fração dos
+#   resultados do cliente em outro computador (a verificação genérica para tipos de
+#   trabalho que as verificações baratas não conseguem reconstruir).
+# >> on_failure
+# O que acontece quando uma verificação falha: weird (o resultado vai para weird/, o
+# cliente continua trabalhando) ou quarantine (além disso, para de enviar tarefas a esse
+# cliente e verifica de novo seus resultados passados).
+# >> energy_tolerance
+# Diferença máxima de energia (Hartree) aceita ao comparar dois cálculos (réplicas).
+# Computadores honestos diferem em até ~2e-6 Eh (UKS + RIJCOSX, visto no laboratório);
+# 1e-5 Eh são 0.006 kcal/mol, muito abaixo de qualquer falsificação quimicamente útil
+# (uma de 2e-4 Eh foi pega).
+# >> check_max_scf_iterations
+# check_max_scf_iterations: limite de iterações SCF das verificações scf/gradiente, que
+#   recomeçam dos orbitais devolvidos (os autênticos convergem em poucos ciclos; 4 foram
+#   vistos para um fenol).
+#   Uma verificação que não converge dentro do limite é INCONCLUSIVA, não uma prova de
+#   trapaça: o resultado vai para errors/ com um veredito que cita esta opção, para que
+#   você possa aumentá-la e usar "retry". Mais alto = menos verificações inconclusivas,
+#   um pouco mais de cálculo por verificação.
+# >> hessian_tolerance
+# hessian_tolerance: maior discrepância relativa ||H v - diferença finita|| aceita pela
+#   sonda da hessiana. Execuções honestas medidas no laboratório: HF 0.00004, PBE 0.0006,
+#   B3LYP/RIJCOSX 0.0018 (malhas numéricas). Uma hessiana inflada em x % dá cerca de
+#   x/100, então 0.005 pega frequências deslocadas em mais de ~0.25 % (0.02 deixou passar
+#   uma falsificação de 2 %).
+# >> reputation, trusted_after, trusted_multiplier, recent_failure_window, recent_failure_multiplier, second_opinion
+# second_opinion: quando todas as subverificações de um resultado rodaram em UM só
+#   computador, repetir a mais barata (SCF, gradiente ou réplica) em outro computador
+#   independente antes de aceitá-lo, e tratar verificadores que discordam como uma
+#   disputa (weird/, ninguém é penalizado). Defende contra dois clientes em conluio que
+#   aprovam os resultados forjados um do outro (teste de laboratório: 6 de 12
+#   falsificações passaram sem isso). Custo: uma verificação extra barata para as
+#   verificações de um só computador.
+# Reputação (depois do período de prova): um cliente com trusted_after verificações
+#   aprovadas e nenhuma verificação reprovada dentro de recent_failure_window tem suas
+#   frações de verificação multiplicadas por trusted_multiplier (nunca zero: a amostragem
+#   continua imprevisível); um cliente com uma verificação reprovada dentro dessa janela
+#   recebe recent_failure_multiplier em vez disso.
+# >> second_opinion_unavailable
+# second_opinion_unavailable: o que fazer com um resultado verificado num só computador
+#   quando nenhum outro computador independente pode dar a segunda opinião (nenhum
+#   conectado, ou ela expirou): weird (padrão, escolhido pelo usuário) o manda para
+#   weird/ para um desempate ou um novo cálculo; accept o mantém (ele passou numa
+#   verificação). Num servidor com menos de três clientes nunca há um terceiro
+#   computador: ali, "weird" manda quase todo resultado verificado para weird/ (um aviso
+#   é registrado no log), então instalações pequenas podem preferir accept.
+# >> retry_weird
+# retry_weird: quando um resultado termina em weird/, colocar sua entrada de volta no
+#   FIM da fila (uma vez por tarefa), excluindo o cliente que o produziu; o resultado
+#   suspeito fica em weird/ para revisão. false = deixar a tarefa sem fazer (um alerta
+#   avisa).
+# >> rescue_weird
+# rescue_weird: um resultado em weird/ SEM prova de trapaça (verificadores discordam, ou
+#   uma verificação reprovada que ninguém conseguiu confirmar) recebe primeiro uma
+#   verificação barata de desempate (nova verificação SCF, ou uma réplica sem orbitais)
+#   num computador que não participou; se passar, o resultado volta para output/ e o
+#   trabalho não é recalculado. Caso contrário, vale retry_weird.
+#   Falsificações confirmadas (dois computadores contra o produtor) nunca são
+#   resgatadas.
+# >> same_host
+# As verificações podem rodar no computador que produziu o resultado. Só para um único
+# computador (Nacomline): ali elas podem pegar uma máquina com defeito (memória ruim,
+# superaquecimento), nunca um trapaceiro. Padrão false: um resultado é sempre verificado
+# em outro computador.
+# >> quarantine_after, quarantine_window, quarantine_recheck
+# quarantine_after: um cliente com esta quantidade de verificações reprovadas dentro de
+#   quarantine_window entra em quarentena automaticamente: continua calculando, cada
+#   resultado que devolve é verificado, e o administrador recebe um alerta ("clients
+#   drain" interrompe todas as tarefas dele). Falhas isoladas são toleradas. 0 = nunca
+#   automaticamente.
+# quarantine_recheck: em qualquer quarentena (automática ou pelo administrador),
+#   verificar de novo esta quantidade dos resultados aceitos mais recentes do cliente em
+#   computadores independentes (0 = nenhum).
+# >> quarantine_escalate_fraction
+# quarantine_escalate_fraction: se um resultado verificado de novo estiver ruim,
+#   verificar de novo esta fração de TODOS os resultados aceitos do cliente (uma amostra
+#   aleatória; 1 = todos, 0 = sem escalar).
+# >> quarantine_auto_release
+# quarantine_auto_release: liberar o cliente automaticamente quando suas novas
+#   verificações estão todas corretas (a detecção pode errar; ninguém precisa desbloquear
+#   clientes à mão). Resultados ruins ficam em weird/ e suas tarefas são tentadas de novo
+#   de qualquer forma.
+#
+# ---------------- [storage] ----------------
+# >> limit, warn_percent
+# Espaço máximo em disco para o spool (output/ etc.). unlimited por padrão. Novos
+# resultados são recusados (os clientes os guardam e tentam de novo depois) quando o
+# limite é atingido.
+# >> min_free
+# Manter pelo menos isto livre no disco que contém o projeto: um resultado que deixaria
+# menos (contando os envios em andamento) é recusado e o cliente tenta de novo depois.
+# Impede que qualquer um com uma chave, ou um trabalho descontrolado, encha o disco.
+# auto = 5 % do disco, no máximo 5G (um valor fixo de 5G recusou todos os resultados num
+# disco pequeno de 8 GB no laboratório); 0 = desligado.
+#
+# ---------------- [alerts] ----------------
+# >> email_enabled, smtp_server, smtp_user, smtp_password_file, from, to, smtp_password_env
+# Alertas por e-mail, enviados por SMTP (qualquer conta de e-mail serve; não é preciso
+# um projeto do Google Cloud nem OAuth). Nunca escreva a senha neste arquivo: ela vai em
+# smtp_password_file (um arquivo só com a senha, que só você pode ler).
+# smtp_password_env indica em vez disso uma variável de ambiente (um serviço não vê as
+# variáveis do seu terminal: use o arquivo).
+#
+# Passo a passo (Gmail; outros provedores são parecidos, veja a página de ajuda de
+# "SMTP" deles):
+#   1. Use uma conta para os alertas (uma nova é uma boa ideia) e ative a verificação em
+#      duas etapas dela: https://myaccount.google.com/security
+#   2. Vá direto a https://myaccount.google.com/apppasswords (os menus a escondem),
+#      escreva "Matriline" e clique em Criar. O Google mostra 16 letras uma única vez.
+#   3. Salve-as num arquivo que só você pode ler, sem que elas apareçam na tela:
+#        Linux/macOS: umask 077; read -rs -p "App password: " p; printf '%s' "$p" > ~/.keys/matriline-mail; unset p
+#        Windows (PowerShell): $p = Read-Host -AsSecureString "App password";
+#          [Net.NetworkCredential]::new('', $p).Password | Set-Content -NoNewline $HOME\matriline-mail
+#   4. Em [alerts] lá em cima: email_enabled = true, smtp_server = smtp.gmail.com:587,
+#      smtp_user = o endereço da conta em que você criou a senha de app (o endereço de
+#      outra conta é recusado: "Username and Password not accepted"), smtp_password_file
+#      = o caminho completo do arquivo (p. ex. /home/<you>/.keys/matriline-mail), from =
+#      esse endereço, to = quem recebe os alertas.
+#   5. matriline-server config reload, depois matriline-server test-alert: um e-mail de
+#      teste deve chegar (olhe na pasta de spam na primeira vez).
+# Se o Google disser que a opção "não está disponível para sua conta": a verificação em
+# duas etapas está desativada, ou a conta pertence a uma instituição que bloqueia senhas
+# de app (use outra conta, ou o Telegram). Outros provedores: Yahoo
+# smtp.mail.yahoo.com:587 (senha de app), um servidor de empresa ou instituição:
+# pergunte à equipe de TI. A conexão é criptografada (STARTTLS).
+# >> telegram_enabled, telegram_token_file, telegram_chat
+# Alertas por Telegram, de um bot seu (o jeito mais fácil). Passo a passo:
+#   1. No Telegram, abra o @BotFather, envie /newbot, dê ao bot um nome (p. ex. "Meus
+#      alertas do Matriline") e um nome de usuário que termine em "bot". O BotFather
+#      responde com um token.
+#   2. Salve o token num arquivo que só você pode ler (como no passo 3 do e-mail,
+#      acima), p. ex.
+#        umask 077; read -rs -p "Bot token: " t; printf '%s' "$t" > ~/.keys/matriline-telegram; unset t
+#   3. Abra seu bot novo no Telegram (procure o nome de usuário dele) e envie /start a
+#      ele. Sem isso, um bot não pode escrever para você.
+#   4. Seu id de chat: abra o @userinfobot no Telegram e envie /start; ele responde com
+#      o seu Id (um número).
+#   5. Em [alerts] lá em cima: telegram_enabled = true, telegram_token_file = o caminho
+#      completo do arquivo do token, telegram_chat = seu Id.
+#   6. matriline-server config reload, depois matriline-server test-alert: o bot escreve
+#      para você. Para um grupo: adicione o bot ao grupo e use o id do grupo (negativo).
+# >> command
+# test-alert (ou 'alerts test') envia na hora um alerta de teste por cada canal ligado,
+# e diz quais funcionaram. Programa de alertas: executado a cada alerta (mesmos eventos
+# e limite) com dois argumentos, o evento e a mensagem, e sem shell; p. ex. um script
+# que o envia por Telegram ou ntfy. (O Telegram já vem embutido: telegram_enabled.)
+# Um caminho absoluto; vazio = desligado. Pode rodar no máximo 30 s.
+# >> storage, verify_failed, quarantine, client_lost, tasks, campaign_done, update, errors, orca_version, enrolled, ban
+# Cada alerta pode ser off, now ou summary. now: enviado por e-mail (e entregue ao
+# programa de alertas) na hora; o mesmo alerta no máximo uma vez por now_limit, os
+# demais vão para o resumo. summary: guardado e enviado junto no horário do resumo. off:
+# só em state/events.log. Arquivos escritos antes destas opções ("events = ..." e
+# "digest = ...") mantêm seu significado.
+# >> now_limit
+# O mesmo alerta enviado "now" no máximo uma vez por este intervalo (padrão 1h).
+# >> summary
+# Quando o resumo é enviado, em palavras simples: off; hourly; every 30m, every 6h (a
+# partir da meia-noite); daily 08:00 (várias vezes: daily 08:00 20:00); weekdays 08:00;
+# weekends 10:00; mon,thu 09:00; mon-fri 18:30; weekly mon 09:00. Pelo relógio deste
+# computador. Alertas guardados quando o servidor para são enviados nesse momento.
+# >> summary_when_quiet
+# true: o resumo é enviado mesmo quando não houve nenhum alerta, com o estado do projeto
+# (um "tudo certo" diário); false: só quando há algo a informar.
+#
+# ---------------- [hooks] ----------------
+# Programas executados quando algo acontece, para mover, copiar, enviar ou encadear
+# resultados (um caminho absoluto; vazio = nenhum). Eles rodam um de cada vez, sem
+# shell, no máximo 10 minutos cada; uma falha é registrada no log e anotada em
+# state/events.log.
+# >> result
+# Executado para cada resultado que chega a, ou é movido para, output/, weird/ ou
+# errors/, com os argumentos: result <task> <output|weird|errors> <result folder>
+# (também no ambiente: MATRILINE_EVENT, MATRILINE_TASK, MATRILINE_VERDICT,
+# MATRILINE_RESULT_DIR). Exemplo: um script que copia os resultados de output/ para uma
+# pasta na nuvem, ou que escreve a próxima entrada de uma cadeia (p. ex. um trabalho de
+# frequências a partir de uma geometria otimizada) em input/.
+# >> done
+# Executado quando a fila se esvazia (todas as entradas prontas, nada rodando): done
+# <summary>.
+#
+# ---------------- [web] ----------------
+# >> palette
+# Cores da página web: A (padrão) ou B, ou suas versões escuras A-dark e B-dark.
+# Cada paleta tem cinco cores.
+# >> mol_rotation
+# A visão 3D de uma molécula dá sozinha uma volta completa neste intervalo (padrão 20s);
+# 0 = ela fica parada (sempre dá para girá-la com o mouse).
+# >> mol_background
+# Fundo da visão 3D: auto (preto com uma paleta escura, branco com uma clara) ou uma cor
+# (seis dígitos hexadecimais).
+# >> white, black, gray, dark, light
+# Substitui uma cor da paleta (seis dígitos hexadecimais, p. ex. f0f7f4; vazio = a da
+# paleta): white é o fundo, black o texto sobre ele (o texto sobre preto é branco), gray
+# as linhas e o texto secundário, dark a aba selecionada, a opção escolhida e os botões
+# que podem ser usados, light as opções não escolhidas e o que não pode ser usado.
+# Aplicado quando 'matriline-server web' inicia.
+#
+# ---------------- [update] ----------------
+# >> mode
+# EXPERIMENTAL, não recomendado para um projeto em andamento: ainda não há migração da
+# configuração nem das pastas, então uma versão que mudasse o formato delas poderia
+# desorganizar o projeto. Mais seguro: atualizar à mão entre projetos (INSTALL.md).
+# off: nunca procura. alert: uma vez por check_interval o servidor procura uma nova
+# versão e avisa você (o alerta 'update' da seção de alertas);
+# 'matriline-server update apply' a instala. auto: ele também a instala sozinho. A
+# instalação só acontece se todos os clientes puderem se atualizar (cada um informa isso
+# ao se conectar; 'update status' lista os que não podem), primeiro os clientes (cada um
+# entre trabalhos), depois este servidor, que reinicia. Só são instaladas versões
+# assinadas com a chave do mantenedor do Matriline, embutida nos programas: nem mesmo
+# alguém que controle a página de versões ou este servidor pode fazer um cliente
+# instalar outra coisa. O programa anterior fica como <program>.previous.
+# >> check_interval
+# Com que frequência procurar (padrão 720h, 30 dias).
+# >> url
+# Onde estão as versões assinadas: a página de releases do GitHub (ou um espelho com a
+# mesma estrutura: latest/download/release.json, download/v<version>/<program>). Os
+# clientes baixam do seu próprio update_url, não daqui.
+# >> client_wait
+# Um cliente que continua na versão antiga depois deste tempo (ele espera seus trabalhos
+# terminarem) é sinalizado; o servidor continua esperando por ele antes de instalar a
+# própria.
+#
+# ---------------- [log] ----------------
+# >> level
+# debug, info, warn, error

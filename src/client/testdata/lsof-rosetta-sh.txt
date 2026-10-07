@@ -1,0 +1,13 @@
+p8152
+ftxt
+n/bin/bash
+ftxt
+n/private/var/db/oah/c82b41bcadfaff05a175a01562f508786239f4245d2e43864f430316d071d93d/b59f22d4bc15b770d152ed4c16e3ff674e0acbd53e361cd5407af840b1e01ef8/bash.aot
+ftxt
+n/usr/libexec/rosetta/runtime
+ftxt
+n/Library/Apple/usr/libexec/oah/libRosettaRuntime
+ftxt
+n/usr/lib/dyld
+ftxt
+n/private/var/db/oah/c82b41bcadfaff05a175a01562f508786239f4245d2e43864f430316d071d93d/b7761d83ee36bb4550b301a34d2424ef8ef5b235d6865590d1c6d05b27fcf4e6/dyld.aot

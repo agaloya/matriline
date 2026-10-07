@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1630" height="774" viewBox="0 0 1630 774" font-family="DejaVu Sans, Helvetica, Arial, sans-serif">
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#666"/></marker></defs>
+<rect width="1630" height="774" fill="#ffffff"/>
+<text x="30" y="36" font-size="20" font-weight="bold">Which ORCA 6.1.1 file to download</text>
+<text x="30" y="60" font-size="13" fill="#444">ORCA forum (orcaforum.kofo.mpg.de) &gt; Filebase &gt; ORCA 6.1.1. Every file name starts with orca_6_1_1_ (Windows: Orca.6.1.1.). Matriline accepts all of them.</text>
+<rect x="1100" y="86.0" width="500" height="48" rx="8" fill="#e9f7ef" stroke="#3c8d5a" stroke-width="1.5"/>
+<text x="1112" y="106" font-size="14" font-weight="bold" font-family="DejaVu Sans Mono, Menlo, Consolas, monospace">linux_x86-64_shared_openmpi418_avx2.tar.xz</text>
+<text x="1112" y="124" font-size="12" fill="#444">16-24 % faster than the one below, same results</text>
+<text x="1590" y="106" font-size="11" fill="#3c8d5a" text-anchor="end" font-weight="bold">best</text>
+<rect x="1100" y="152.0" width="500" height="48" rx="8" fill="#e9f7ef" stroke="#3c8d5a" stroke-width="1.5"/>
+<text x="1112" y="172" font-size="14" font-weight="bold" font-family="DejaVu Sans Mono, Menlo, Consolas, monospace">linux_x86-64_shared_openmpi418.tar.xz</text>
+<text x="1112" y="190" font-size="12" fill="#444">for processors without AVX2 (some old or cheap ones)</text>
+<rect x="1100" y="218.0" width="500" height="48" rx="8" fill="#e9f7ef" stroke="#3c8d5a" stroke-width="1.5"/>
+<text x="1112" y="238" font-size="14" font-weight="bold" font-family="DejaVu Sans Mono, Menlo, Consolas, monospace">linux_arm64_shared_openmpi418.tar.xz</text>
+<text x="1112" y="256" font-size="12" fill="#444">ARM computers (e.g. Ampere servers, Raspberry Pi 5)</text>
+<rect x="1100" y="284.0" width="500" height="48" rx="8" fill="#e9f7ef" stroke="#3c8d5a" stroke-width="1.5"/>
+<text x="1112" y="304" font-size="14" font-weight="bold" font-family="DejaVu Sans Mono, Menlo, Consolas, monospace">linux_riscv_shared_openmpi418.tar.xz</text>
+<text x="1112" y="322" font-size="12" fill="#444">RISC-V computers</text>
+<rect x="1100" y="350.0" width="500" height="48" rx="8" fill="#e9f7ef" stroke="#3c8d5a" stroke-width="1.5"/>
+<text x="1112" y="370" font-size="14" font-weight="bold" font-family="DejaVu Sans Mono, Menlo, Consolas, monospace">macosx_arm64_openmpi411.tar.bz2</text>
+<text x="1112" y="388" font-size="12" fill="#444">if unsure, this one: about the same in most cases, and smaller (1.7 GB)</text>
+<text x="1590" y="370" font-size="11" fill="#3c8d5a" text-anchor="end" font-weight="bold">recommended</text>
+<rect x="1100" y="416.0" width="500" height="48" rx="8" fill="#e9f7ef" stroke="#3c8d5a" stroke-width="1.5"/>
+<text x="1112" y="436" font-size="14" font-weight="bold" font-family="DejaVu Sans Mono, Menlo, Consolas, monospace">macosx_arm64_openblas_openmpi411.tar.bz2</text>
+<text x="1112" y="454" font-size="12" fill="#444">the same program with the OpenBLAS maths library (8.5 GB)</text>
+<rect x="1100" y="482.0" width="500" height="48" rx="8" fill="#e9f7ef" stroke="#3c8d5a" stroke-width="1.5"/>
+<text x="1112" y="502" font-size="14" font-weight="bold" font-family="DejaVu Sans Mono, Menlo, Consolas, monospace">macosx_intel_openmpi411.tar.bz2</text>
+<text x="1112" y="520" font-size="12" fill="#444">Intel Macs</text>
+<rect x="1100" y="548.0" width="500" height="48" rx="8" fill="#e9f7ef" stroke="#3c8d5a" stroke-width="1.5"/>
+<text x="1112" y="568" font-size="14" font-weight="bold" font-family="DejaVu Sans Mono, Menlo, Consolas, monospace">Win64_msmpi.zip</text>
+<text x="1112" y="586" font-size="12" fill="#444">an installer: Typical or Full give the same ORCA</text>
+<text x="1590" y="568" font-size="11" fill="#3c8d5a" text-anchor="end" font-weight="bold">most people</text>
+<rect x="1100" y="614.0" width="500" height="48" rx="8" fill="#e9f7ef" stroke="#3c8d5a" stroke-width="1.5"/>
+<text x="1112" y="634" font-size="14" font-weight="bold" font-family="DejaVu Sans Mono, Menlo, Consolas, monospace">Win64_msmpi.zip + Win64_autoci.zip</text>
+<text x="1112" y="652" font-size="12" fill="#444">AUTOCI unzipped into the ORCA folder</text>
+<rect x="1100" y="680.0" width="500" height="48" rx="8" fill="#e9f7ef" stroke="#3c8d5a" stroke-width="1.5"/>
+<text x="1112" y="700" font-size="14" font-weight="bold" font-family="DejaVu Sans Mono, Menlo, Consolas, monospace">Win64_msmpi.zip + Win64_autoci_msmpi.zip</text>
+<text x="1112" y="718" font-size="12" fill="#444">the same for multi-core jobs (needs MS-MPI); both AUTOCI zips also work</text>
+<rect x="30" y="350.0" width="150" height="48" rx="8" fill="#e8f0fe" stroke="#4a6fa5" stroke-width="1.5"/>
+<text x="42" y="379" font-size="14" font-weight="bold" >Your system?</text>
+<rect x="330" y="185.0" width="220" height="48" rx="8" fill="#e8f0fe" stroke="#4a6fa5" stroke-width="1.5"/>
+<text x="342" y="205.0" font-size="14" font-weight="bold" >Processor?</text>
+<text x="342" y="223.0" font-size="12" fill="#444">uname -m</text>
+<rect x="720" y="119.0" width="230" height="48" rx="8" fill="#e8f0fe" stroke="#4a6fa5" stroke-width="1.5"/>
+<text x="732" y="139.0" font-size="14" font-weight="bold" >AVX2?</text>
+<text x="732" y="157.0" font-size="12" fill="#444">grep -o -m1 avx2 /proc/cpuinfo</text>
+<rect x="330" y="416.0" width="220" height="48" rx="8" fill="#e8f0fe" stroke="#4a6fa5" stroke-width="1.5"/>
+<text x="342" y="436" font-size="14" font-weight="bold" >Chip?</text>
+<text x="342" y="454" font-size="12" fill="#444">Apple menu &gt; About This Mac</text>
+<rect x="720" y="383.0" width="230" height="48" rx="8" fill="#e8f0fe" stroke="#4a6fa5" stroke-width="1.5"/>
+<text x="732" y="403.0" font-size="14" font-weight="bold" >Which build?</text>
+<text x="732" y="421.0" font-size="12" fill="#444">both are accepted</text>
+<rect x="330" y="581.0" width="220" height="48" rx="8" fill="#e8f0fe" stroke="#4a6fa5" stroke-width="1.5"/>
+<text x="342" y="601.0" font-size="14" font-weight="bold" >AUTOCI methods?</text>
+<text x="342" y="619.0" font-size="12" fill="#444">only if your inputs use them</text>
+<rect x="720" y="647.0" width="230" height="48" rx="8" fill="#e8f0fe" stroke="#4a6fa5" stroke-width="1.5"/>
+<text x="732" y="667.0" font-size="14" font-weight="bold" >On several cores?</text>
+<text x="732" y="685.0" font-size="12" fill="#444">max_cores_per_job &gt; 1</text>
+<path d="M180,374 H198 V209.0 H328" fill="none" stroke="#666" stroke-width="1.4" marker-end="url(#a)"/>
+<text x="206" y="203.0" font-size="12" fill="#222">Linux</text>
+<path d="M180,374 H198 V440 H328" fill="none" stroke="#666" stroke-width="1.4" marker-end="url(#a)"/>
+<text x="206" y="434" font-size="12" fill="#222">macOS</text>
+<path d="M180,374 H198 V605.0 H328" fill="none" stroke="#666" stroke-width="1.4" marker-end="url(#a)"/>
+<text x="206" y="599.0" font-size="12" fill="#222">Windows</text>
+<path d="M550,209.0 H568 V143.0 H718" fill="none" stroke="#666" stroke-width="1.4" marker-end="url(#a)"/>
+<text x="576" y="137.0" font-size="12" fill="#222">x86_64 (Intel, AMD)</text>
+<path d="M550,209.0 H568 V242 H1098" fill="none" stroke="#666" stroke-width="1.4" marker-end="url(#a)"/>
+<text x="576" y="236" font-size="12" fill="#222">aarch64 (ARM)</text>
+<path d="M550,209.0 H568 V308 H1098" fill="none" stroke="#666" stroke-width="1.4" marker-end="url(#a)"/>
+<text x="576" y="302" font-size="12" fill="#222">riscv64 (RISC-V)</text>
+<path d="M950,143.0 H968 V110 H1098" fill="none" stroke="#666" stroke-width="1.4" marker-end="url(#a)"/>
+<text x="976" y="104" font-size="12" fill="#222">yes (prints avx2)</text>
+<path d="M950,143.0 H968 V176 H1098" fill="none" stroke="#666" stroke-width="1.4" marker-end="url(#a)"/>
+<text x="976" y="170" font-size="12" fill="#222">no (prints nothing)</text>
+<path d="M550,440 H568 V407.0 H718" fill="none" stroke="#666" stroke-width="1.4" marker-end="url(#a)"/>
+<text x="576" y="401.0" font-size="12" fill="#222">Apple M1, M2, ...</text>
+<path d="M550,440 H568 V506 H1098" fill="none" stroke="#666" stroke-width="1.4" marker-end="url(#a)"/>
+<text x="576" y="500" font-size="12" fill="#222">Intel</text>
+<path d="M950,407.0 H968 V374 H1098" fill="none" stroke="#666" stroke-width="1.4" marker-end="url(#a)"/>
+<text x="976" y="368" font-size="12" fill="#222">plain</text>
+<path d="M950,407.0 H968 V440 H1098" fill="none" stroke="#666" stroke-width="1.4" marker-end="url(#a)"/>
+<text x="976" y="434" font-size="12" fill="#222">OpenBLAS</text>
+<path d="M550,605.0 H568 V572 H1098" fill="none" stroke="#666" stroke-width="1.4" marker-end="url(#a)"/>
+<text x="576" y="566" font-size="12" fill="#222">no (DFT, Opt, Freq...)</text>
+<path d="M550,605.0 H568 V671.0 H718" fill="none" stroke="#666" stroke-width="1.4" marker-end="url(#a)"/>
+<text x="576" y="665.0" font-size="12" fill="#222">yes</text>
+<path d="M950,671.0 H968 V638 H1098" fill="none" stroke="#666" stroke-width="1.4" marker-end="url(#a)"/>
+<text x="976" y="632" font-size="12" fill="#222">no (one core)</text>
+<path d="M950,671.0 H968 V704 H1098" fill="none" stroke="#666" stroke-width="1.4" marker-end="url(#a)"/>
+<text x="976" y="698" font-size="12" fill="#222">yes</text>
+</svg>

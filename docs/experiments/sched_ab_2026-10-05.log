@@ -1,0 +1,31 @@
+### 09:56:23 training: 48 inputs; test: 38 inputs
+11:54:30 batch train (order): makespan 117 min 43 s
+scheduler: order (learned needs >= 30 samples)
+samples: 48   fit: rms log error 0.13, median relative error 7 %
+5-fold cross-validation (honest error on unseen jobs): median relative error 8 % (48 predictions)
+note: effects of features that always occur together (e.g. Opt and Freq) are not separable
+
+client speed (1.00 = fastest; time factor relative to it)
+  void-ab      x1.00
+  server-ab    x1.02
+  artix-ab     x1.24
+  ubuntu-ab    x1.27
+
+feature effects (time factor when the feature is present / per e-fold)
+  ln_electrons             x2.91
+  ln_atoms                 x4.53
+  opt                      x0.45
+  freq                     x0.45
+  open_shell               x1.92
+  method_cc                x1.00
+  method_mp2               x1.00
+  method_double_hybrid     x1.00
+12:18:49 batch learned (learned): makespan 24 min 16 s
+12:43:13 batch order (order): makespan 24 min 24 s
+### 12:43:13 done
+CLIENT     ACCEPTED  WEIRD  ERRORS  STATUS
+ubuntu-ab  54        0      0       active
+server-ab  19        0      0       active
+void-ab    19        0      0       active
+artix-ab   32        0      0       active
+lab/tests/sched_ab.sh: line 105: unexpected EOF while looking for matching `"'

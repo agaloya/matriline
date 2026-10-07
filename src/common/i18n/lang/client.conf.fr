@@ -1,0 +1,175 @@
+# source a16b9507457affa7
+# =============================================================================
+# Configuration du client Matriline (options LOCALES de cet ordinateur)
+# =============================================================================
+# La politique réseau (chiffrement, manière de rejoindre le projet, fichiers renvoyés,
+# ...) est décidée par le serveur et reçue automatiquement : vous ne la configurez pas
+# ici, et le serveur ne peut pas faire dépasser à cet ordinateur les limites que vous
+# fixez ci-dessous.
+
+
+[general]
+# en: language of the menus, help and messages: "en", "es", "fr", "pt", "ar" (empty: this computer's)
+# es: idioma de los menús, la ayuda y los mensajes: "en", "es", "fr", "pt", "ar" (vacío: el de esta computadora)
+# fr: langue des menus, de l'aide et des messages : "en", "es", "fr", "pt", "ar" (vide : celle de cet ordinateur)
+# pt: idioma dos menus, da ajuda e das mensagens: "en", "es", "fr", "pt", "ar" (vazio: o deste computador)
+# ar: لغة القوائم والمساعدة والرسائل: "en", "es", "fr", "pt", "ar" (فارغ: لغة هذا الحاسوب؛ الترجمة العربية آلية ولم تُراجَع بعد)
+language =
+
+
+[client]
+# Fichier d'identifiant que vous a remis l'administrateur du serveur (ou créé par
+# "matriline-client join").
+credential = credential.conf
+
+# Où le client garde son état (les calculs en cours survivent ici aux coupures de
+# courant).
+state_dir = state
+
+# Un seul client peut tourner par state_dir (un second refuse de démarrer). Pour prêter
+# cet ordinateur aussi à un autre projet, lancez un second client avec son propre
+# répertoire.
+# Où ORCA s'exécute. Vide = <state_dir>/jobs. Utilisez un disque local rapide.
+scratch_dir =
+
+
+[orca]
+# Installations d'ORCA disponibles sur cet ordinateur (le serveur indique quelle version
+# utiliser).
+paths = /opt/orca-6.1.1
+
+# Installation d'OpenMPI pour les calculs multicœurs (resources.max_cores_per_job > 1) :
+# le répertoire qui contient bin/mpirun. "auto" cherche dans PATH et /opt/openmpi-*.
+# ORCA 6.1 pour Linux nécessite OpenMPI 4.1.x. Il reçoit une empreinte comme ORCA et
+# tourne dans le même bac à sable.
+mpi_path = auto
+
+
+[resources]
+# Cœurs de CPU prêtés à Matriline (un calcul mono-cœur par cœur).
+# 0 = automatique : tous les cœurs physiques moins un (un ordinateur à un seul cœur
+# utilise son unique cœur et émet un avertissement).
+cores = 0
+
+# smt : compter aussi comme un cœur le second fil matériel de chaque cœur
+# (Hyper-Threading/SMT). Désactivé par défaut : mesuré avec ORCA, un second calcul sur
+# le même cœur n'ajoute que ~11 % de débit et rend chaque calcul ~80 % plus lent et le
+# CPU plus chaud.
+smt = false
+
+# Mémoire par cœur. Le client fixe le %maxcore d'ORCA à 75 % de cette valeur (ORCA peut
+# dépasser %maxcore) ; il avertit et prête moins de cœurs si l'ordinateur n'a pas assez
+# de RAM.
+memory_per_core = 1GiB
+
+# Ou un total pour tous les calculs ensemble (p. ex. 12GiB ; 0 = désactivé) : chaque
+# calcul reçoit par défaut une part égale (memory_total / cores), mais un calcul connu
+# pour nécessiter plus de mémoire par cœur (le serveur l'apprend des propres erreurs
+# d'ORCA) ou un calcul multicœur peut en prendre davantage tant que le reste est libre.
+# Si cette option est fixée, memory_per_core n'est pas utilisé.
+memory_total = 0
+
+# Plus gros calcul multicœur accepté (une entrée avec "%pal nprocs N" ou "! PALN", quand
+# le serveur les autorise). Un calcul de N cœurs prend N des cœurs ci-dessus et N fois
+# la mémoire par cœur. 1 = calculs mono-cœur uniquement (par défaut : plusieurs calculs
+# indépendants utilisent mieux les cœurs ; mesuré, 2 cœurs ne rendent un calcul que
+# ~1.25x plus rapide). Nécessite OpenMPI, voir orca.mpi_path.
+# macOS : toujours 1. Son bac à sable ne peut pas limiter les connexions d'OpenMPI à cet
+# ordinateur : un calcul multi-cœur aurait accès au réseau.
+max_cores_per_job = 1
+
+# Disque de travail pour les calculs en cours, comme les cœurs et la mémoire : un total
+# pour tous les calculs ensemble (disk_limit ; aucune nouvelle tâche tant qu'il est
+# épuisé), et/ou une quantité fixe par calcul (disk_per_job ; un calcul qui a besoin de
+# plus est arrêté et part vers un autre ordinateur). Tous deux unlimited par défaut : le
+# client apprend combien il faut à chaque type de calcul et ne prend qu'un calcul qui
+# tient.
+disk_limit = unlimited
+
+disk_per_job = unlimited
+
+# Toujours laissé libre sur le disque de travail pour le système et l'utilisateur, quoi
+# que disent les limites ci-dessus ; un calcul en cours est arrêté si l'espace libre
+# tombe sous la moitié de cette valeur.
+# "auto" = 10 GiB, mais au plus 20 % du disque (p. ex. 2 GiB sur un disque de 10 Go) ; ou
+# une taille.
+disk_reserve = auto
+
+# Limite de débit d'envoi des résultats (10Mbit par défaut ; "unlimited" pour la
+# désactiver).
+bandwidth_limit = 10Mbit
+
+
+[schedule]
+# N'accepter de nouvelles tâches que dans ces plages (celles en cours se terminent
+# toujours). Vide = toujours.
+# Exemples : windows = mon-fri 20:00-07:00, sat-sun 00:00-24:00
+windows =
+
+# Ne pas accepter de nouvelles tâches pendant le fonctionnement sur batterie.
+pause_on_battery = true
+
+# Pendant que des calculs tournent sur secteur, empêche cet ordinateur de se mettre en veille
+# tout seul (l'écran peut s'éteindre ; fermer le capot d'un portable le met quand même en
+# veille). Sur batterie ou sans calcul, il se met en veille comme d'habitude. Ses réglages
+# d'énergie ne sont pas modifiés.
+keep_awake = true
+
+# Quand pause_on_battery = false : cesser d'accepter de nouvelles tâches sur batterie
+# en dessous de cette charge (pourcentage, 0 = désactivé) ; les tâches en cours se
+# terminent. La prise de tâches reprend sur secteur ou quand la charge dépasse la limite
+# de battery_resume_margin points (pas d'oscillation autour d'elle).
+# Les machines sans batterie système (ordinateurs de bureau, serveurs, VM) ne sont
+# jamais mises en pause par ce réglage.
+min_battery_percent = 0
+
+battery_resume_margin = 5
+
+# Ne pas accepter de nouvelles tâches tant que d'autres programmes utilisent plus que ce
+# pourcentage du CPU (0 = désactivé).
+pause_when_busy_percent = 0
+
+
+[limits]
+# Arrêter un calcul qui dure plus longtemps que cela (0 = pas de limite). La tâche
+# retourne au serveur pour un autre ordinateur.
+max_task_time = 0
+
+# Plus gros fichier unique qu'un calcul peut écrire (p. ex. 50G), "unlimited" par défaut.
+# Les fichiers temporaires d'ORCA peuvent faire plusieurs Go (DLPNO) ; la protection du
+# disque de travail protège le disque.
+max_file_size = unlimited
+
+# Cesser d'accepter de nouvelles tâches tant que le CPU est plus chaud que cela (degrés
+# Celsius, 0 = désactivé, la valeur par défaut). Les calculs en cours continuent ; les
+# nouveaux reprennent une fois qu'il a refroidi.
+cpu_temperature_limit = 0
+
+# D'où la température est lue. Vide = le capteur du CPU de cet ordinateur. Un fichier
+# contenant un nombre en degrés Celsius est utile dans une machine virtuelle (qui n'a
+# pas de capteur) quand son hôte y écrit la température de son propre CPU, ou pour tout
+# capteur personnalisé.
+cpu_temperature_file =
+
+# Après cette date (YYYY-MM-DD), le client s'arrête et se désactive. "never" par défaut.
+end_date = never
+
+
+[security]
+# Exécuter ORCA isolé : pas d'accès réseau, pas d'accès à vos fichiers hors du
+# répertoire du calcul, et aucun autre programme que l'installation d'ORCA. Vivement
+# recommandé.
+sandbox = true
+
+# Fréquence à laquelle toute l'installation d'ORCA est re-hachée en ignorant le cache.
+orca_deep_check_interval = 24h
+
+# Installer les nouvelles versions de Matriline quand le serveur les propose. Seules les
+# versions signées par la clé du mainteneur de Matriline (intégrée à ce programme) sont
+# installées, quel que soit l'expéditeur ; cela se fait entre deux calculs, et le
+# programme précédent est conservé sous <program>.previous.
+updates = true
+
+# D'où les nouvelles versions sont téléchargées (le serveur indique seulement quelle
+# version ; il ne choisit jamais l'adresse).
+update_url = https://github.com/agaloya/matriline/releases

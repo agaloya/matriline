@@ -1,0 +1,19 @@
+# Local-only material (never pushed)
+bitacora/
+trash/
+references/
+lab/captures/
+lab/images/
+*.qcow2
+*.run
+# Go build output
+/bin/
+src/bin/*
+!src/bin/.keep
+# 'go build' in a program's folder leaves the program there
+/src/server/server
+/src/client/client
+/src/relay/relay
+/src/relsign/relsign
+/src/i18nextract/i18nextract
+*.exe

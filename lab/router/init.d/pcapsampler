@@ -1,0 +1,13 @@
+#!/sbin/openrc-run
+# Permanent packet log of all inter-node traffic (core namespace) -> host lab/captures.
+description="Matriline lab packet capture (sampled, max 6 GB)"
+supervisor=supervise-daemon
+command=/sbin/ip
+command_args="netns exec core /opt/lab/pcapsampler -dir /mnt/captures"
+output_log=/var/log/pcapsampler.log
+error_log=/var/log/pcapsampler.log
+respawn_delay=5
+respawn_max=0
+depend() {
+	need localmount labnet
+}

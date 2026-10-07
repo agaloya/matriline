@@ -1,0 +1,170 @@
+# source a16b9507457affa7
+# =============================================================================
+# Configuração do cliente Matriline (opções LOCAIS deste computador)
+# =============================================================================
+# A política da rede (criptografia, como se inscrever, quais arquivos são devolvidos,
+# ...) é decidida pelo servidor e recebida automaticamente: você não a configura aqui, e
+# o servidor não pode fazer este computador ultrapassar os limites que você define
+# abaixo.
+
+
+[general]
+# en: language of the menus, help and messages: "en", "es", "fr", "pt", "ar" (empty: this computer's)
+# es: idioma de los menús, la ayuda y los mensajes: "en", "es", "fr", "pt", "ar" (vacío: el de esta computadora)
+# fr: langue des menus, de l'aide et des messages : "en", "es", "fr", "pt", "ar" (vide : celle de cet ordinateur)
+# pt: idioma dos menus, da ajuda e das mensagens: "en", "es", "fr", "pt", "ar" (vazio: o deste computador)
+# ar: لغة القوائم والمساعدة والرسائل: "en", "es", "fr", "pt", "ar" (فارغ: لغة هذا الحاسوب؛ الترجمة العربية آلية ولم تُراجَع بعد)
+language =
+
+
+[client]
+# Arquivo de credencial que o administrador do servidor lhe deu (ou criado por
+# "matriline-client join").
+credential = credential.conf
+
+# Onde o cliente guarda seu estado (aqui os trabalhos em andamento sobrevivem a quedas
+# de energia).
+state_dir = state
+
+# Só pode rodar um cliente por state_dir (um segundo se recusa a iniciar). Para
+# emprestar este computador também a outro projeto, rode um segundo cliente com seu
+# próprio diretório.
+# Onde o ORCA roda. Vazio = <state_dir>/jobs. Use um disco local rápido.
+scratch_dir =
+
+
+[orca]
+# Instalações do ORCA disponíveis neste computador (o servidor diz qual versão usar).
+paths = /opt/orca-6.1.1
+
+# Instalação do OpenMPI para trabalhos de vários núcleos (resources.max_cores_per_job >
+# 1): o diretório que contém bin/mpirun. "auto" procura no PATH e em /opt/openmpi-*. O
+# ORCA 6.1 para Linux precisa do OpenMPI 4.1.x. Sua impressão digital é calculada como a
+# do ORCA e ele roda dentro do mesmo sandbox.
+mpi_path = auto
+
+
+[resources]
+# Núcleos de CPU emprestados ao Matriline (um cálculo de um núcleo por núcleo).
+# 0 = automático: todos os núcleos físicos menos um (um computador de um só núcleo usa
+# esse único núcleo e avisa).
+cores = 0
+
+# smt: contar também a segunda thread de hardware de cada núcleo (Hyper-Threading/SMT)
+# como um núcleo. Desligado por padrão: medido com o ORCA, um segundo trabalho no mesmo
+# núcleo acrescenta só ~11 % de vazão e deixa cada trabalho ~80 % mais lento e a CPU
+# mais quente.
+smt = false
+
+# Memória por núcleo. O cliente define o %maxcore do ORCA em 75 % deste valor (o ORCA
+# pode passar do %maxcore) e avisa e empresta menos núcleos se o computador não tiver
+# RAM suficiente.
+memory_per_core = 1GiB
+
+# Ou um total para todos os trabalhos juntos (p. ex. 12GiB; 0 = desligado): cada
+# trabalho recebe uma parte igual (memory_total / cores) por padrão, mas um trabalho que
+# se sabe que precisa de mais memória por núcleo (o servidor aprende isso com os
+# próprios erros do ORCA) ou um trabalho de vários núcleos pode pegar mais enquanto o
+# resto estiver livre. Quando definido, memory_per_core não é usado.
+memory_total = 0
+
+# Maior cálculo de vários núcleos aceito (uma entrada com "%pal nprocs N" ou "! PALN",
+# quando o servidor os permite). Um trabalho de N núcleos ocupa N dos núcleos acima e N
+# vezes a memória por núcleo. 1 = só trabalhos de um núcleo (padrão: vários trabalhos
+# independentes aproveitam melhor os núcleos; medido, 2 núcleos deixam um trabalho só
+# ~1.25x mais rápido). Precisa do OpenMPI, veja orca.mpi_path.
+# macOS: sempre 1. O sandbox do macOS não consegue limitar as conexões do OpenMPI a este
+# computador, então um trabalho de vários núcleos teria acesso à rede.
+max_cores_per_job = 1
+
+# Disco de trabalho para os cálculos em andamento, como os núcleos e a memória: um total
+# para todos os trabalhos juntos (disk_limit; nenhuma tarefa nova enquanto estiver
+# esgotado), e/ou uma quantidade fixa por trabalho (disk_per_job; um trabalho que
+# precise de mais é parado e vai para outro computador). Ambos ilimitados por padrão: o
+# cliente aprende quanto cada tipo de trabalho precisa e só pega um trabalho que caiba.
+disk_limit = unlimited
+
+disk_per_job = unlimited
+
+# Sempre deixado livre no disco de trabalho para o sistema e o usuário, digam o que
+# disserem os limites acima; um trabalho em andamento é parado se o espaço livre cair
+# abaixo da metade disso.
+# "auto" = 10 GiB, mas no máximo 20 % do disco (p. ex. 2 GiB num disco de 10 GB); ou um
+# tamanho.
+disk_reserve = auto
+
+# Limite de velocidade de envio dos resultados (10Mbit por padrão; "unlimited" para
+# desativar).
+bandwidth_limit = 10Mbit
+
+
+[schedule]
+# Só aceita tarefas novas dentro destas janelas (as que estão rodando sempre terminam).
+# Vazio = sempre.
+# Exemplos: windows = mon-fri 20:00-07:00, sat-sun 00:00-24:00
+windows =
+
+# Não aceita tarefas novas enquanto funciona na bateria.
+pause_on_battery = true
+
+# Enquanto há cálculos rodando na tomada, impede que este computador suspenda sozinho (a tela
+# pode apagar; fechar a tampa de um notebook o suspende mesmo assim). Na bateria ou sem
+# nada para calcular, ele suspende como de costume. Suas configurações de energia não mudam.
+keep_awake = true
+
+# Quando pause_on_battery = false: para de aceitar tarefas novas na bateria abaixo desta
+# carga (porcentagem, 0 = desligado); as tarefas em andamento terminam. Volta a pegar
+# tarefas na energia da tomada ou quando a carga fica battery_resume_margin pontos acima
+# do limite (sem oscilar em torno dele). Máquinas sem bateria de sistema (desktops,
+# servidores, máquinas virtuais) nunca são pausadas por isso.
+min_battery_percent = 0
+
+battery_resume_margin = 5
+
+# Não aceita tarefas novas enquanto outros programas usam mais que este % da CPU (0 =
+# desligado).
+pause_when_busy_percent = 0
+
+
+[limits]
+# Interrompe um cálculo que roda por mais tempo que isto (0 = sem limite). A tarefa
+# volta ao servidor para outro computador.
+max_task_time = 0
+
+# Maior arquivo individual que um cálculo pode gravar (p. ex. 50G), ilimitado por
+# padrão. Os arquivos temporários do ORCA podem ter vários GB (DLPNO); a proteção do
+# disco de trabalho protege o disco.
+max_file_size = unlimited
+
+# Para de aceitar tarefas novas enquanto a CPU estiver mais quente que isto (graus
+# Celsius, 0 = desligado, o padrão). Os cálculos em andamento continuam; os novos voltam
+# quando ela esfria.
+cpu_temperature_limit = 0
+
+# De onde a temperatura é lida. Vazio = o sensor de CPU deste computador. Um arquivo com
+# um número em graus Celsius é útil numa máquina virtual (que não tem sensor) quando o
+# hospedeiro grava ali a temperatura da própria CPU, ou para qualquer sensor próprio.
+cpu_temperature_file =
+
+# Depois desta data (AAAA-MM-DD) o cliente para e se desativa. "never" por padrão.
+end_date = never
+
+
+[security]
+# Roda o ORCA isolado: sem acesso à rede, sem acesso aos seus arquivos fora do diretório
+# do trabalho e sem outros programas além da instalação do ORCA. Muito recomendado.
+sandbox = true
+
+# Com que frequência o hash de toda a instalação do ORCA é recalculado, ignorando o
+# cache.
+orca_deep_check_interval = 24h
+
+# Instala as novas versões do Matriline quando o servidor as oferece. Só são instaladas
+# versões assinadas com a chave do mantenedor do Matriline (embutida neste programa),
+# seja quem for que as envie; isso acontece entre trabalhos, e o programa anterior fica
+# como <program>.previous.
+updates = true
+
+# De onde as novas versões são baixadas (o servidor só diz qual versão; ele nunca
+# escolhe o endereço).
+update_url = https://github.com/agaloya/matriline/releases

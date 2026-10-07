@@ -1,0 +1,6 @@
+# Large or machine-local lab files (never committed)
+images/
+captures/
+keys/
+run/
+state/

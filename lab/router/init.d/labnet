@@ -1,0 +1,17 @@
+#!/sbin/openrc-run
+# Builds the simulated internet (core + ISP + one namespace per home) at boot.
+description="Matriline lab: simulated internet and per-home NAT routers"
+depend() {
+	need localmount net
+	after firewall
+}
+start() {
+	ebegin "Building lab network namespaces"
+	/mnt/lab/router/netctl.sh boot >/var/log/labnet.log 2>&1
+	eend $? "see /var/log/labnet.log"
+}
+stop() {
+	ebegin "Removing lab network namespaces"
+	/mnt/lab/router/netctl.sh teardown >>/var/log/labnet.log 2>&1
+	eend 0
+}

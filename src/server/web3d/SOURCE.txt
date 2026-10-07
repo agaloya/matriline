@@ -1,0 +1,9 @@
+3Dmol.js 2.5.5 (https://3dmol.org, https://github.com/3dmol/3Dmol.js), BSD-3-Clause
+(LICENSE-3Dmol.txt). File build/3Dmol-min.js of the npm package
+https://registry.npmjs.org/3dmol/-/3dmol-2.5.5.tgz
+integrity sha512-kqNHouGqq3YfW58174tdERvm0XYTmP0tavQKOqIw1ouc2OJ7epkXEFrtEkVXV0clBZT2Ze2xHRC/qxX0u0qCdw==
+(checked when it was added, 2026-10-06). Served only by the local web page (the 3D view
+of a running job's molecule); no external service is contacted.
+Please cite: Rego & Koes, "3Dmol.js: molecular visualization with WebGL",
+Bioinformatics 31, 1322 (2015), doi:10.1093/bioinformatics/btu829
+sha256 of 3Dmol-min.js: f7cc78921ae72e7623e89cdd111434f58c2efddd2ffda1cd212644b406fb8016

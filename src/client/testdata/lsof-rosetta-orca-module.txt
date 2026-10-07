@@ -1,0 +1,17 @@
+p8109
+ftxt
+n/Users/adrian/orca/orca_6_1_1_macosx_intel_openmpi411/orca_scfgrad
+ftxt
+n/private/var/db/oah/c82b41bcadfaff05a175a01562f508786239f4245d2e43864f430316d071d93d/a79ca6c965a98c64823e71c78fd4223d05b9162e97fb3d5ea33e70eced74e663/orca_scfgrad.aot
+ftxt
+n/usr/libexec/rosetta/runtime
+ftxt
+n/Library/Apple/usr/libexec/oah/libRosettaRuntime
+ftxt
+n/Users/adrian/orca/orca_6_1_1_macosx_intel_openmpi411/lib/liborca_tools_6_1_1.6.dylib
+ftxt
+n/private/var/db/oah/c82b41bcadfaff05a175a01562f508786239f4245d2e43864f430316d071d93d/c8447247ebc306959cb7c39ed1159f1d99a4c0ca92c0f5422915e3644ae42131/liborca_tools_6_1_1.6.dylib.aot
+ftxt
+n/usr/lib/dyld
+ftxt
+n/private/var/db/oah/c82b41bcadfaff05a175a01562f508786239f4245d2e43864f430316d071d93d/b7761d83ee36bb4550b301a34d2424ef8ef5b235d6865590d1c6d05b27fcf4e6/dyld.aot
