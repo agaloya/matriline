@@ -2,7 +2,7 @@
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23225200.svg)](https://doi.org/10.5281/zenodo.23225200)
 
-**Share the work of quantum-chemistry calculations among ordinary computers.**
+**Share the work of quantum-chemistry calculations among several computers.**
 
 Matriline lets a research group distribute [ORCA](https://en.wikipedia.org/wiki/ORCA_(quantum_chemistry_program)) calculations among several computers
 (lab desktops, laptops, the computers of colleagues who want to help). This is especially effective in proyects which need to compute hundreds or thousands of inputs.
