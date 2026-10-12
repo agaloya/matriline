@@ -5,7 +5,7 @@
 **Parallelize the tasks of computational chemistry projects in several computers.**
 
 Matriline lets a research group distribute [ORCA](https://en.wikipedia.org/wiki/ORCA_(quantum_chemistry_program)) calculations among several computers
-(lab desktops, laptops, the computers of colleagues who want to help). This is especially effective in proyects which need to compute hundreds or thousands of inputs.
+(lab desktops, laptops, the computers of colleagues who want to help). This is especially effective in projects which need to compute hundreds or thousands of inputs.
 
 ## In plain words
 
